@@ -1,0 +1,37 @@
+# Gowin build products and per-user IDE state
+**/impl/
+*.gprj.user
+*.log
+*.fs
+*.bin
+*.binx
+*.vg
+# XSim and waveform/data exports (testbench source stays tracked)
+**/xsim.dir/
+**/.Xil/
+*.jou
+*.pb
+*.wdb
+/instrument/sim/*.csv
+/instrument/sim/*.ppm
+/instrument/sim/dfx_runtime.txt
+/instrument/sim/output/
+# Local Python environments and generated release packages
+__pycache__/
+*.py[cod]
+.venv/
+.env
+.env.*
+!.env.example
+*.local.ps1
+/dist/
+/backups/
+/tmp/
+*.zip
+# Editor / OS temporary files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+~$*
+*.swp

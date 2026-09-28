@@ -1,0 +1,1 @@
+create_clock -name osc_clk -period 19.048 [get_nets {clk}]
