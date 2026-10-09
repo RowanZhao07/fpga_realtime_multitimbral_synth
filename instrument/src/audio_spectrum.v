@@ -2,17 +2,23 @@
 // Snapshot analyser, independent of the real-time audio path.
 // 4096 real samples, Hann window, radix-2 DIT, 1/N scaling at every stage.
 // Full-rate input: 48828.125 Hz; bin width 11.92093 Hz. No decimation/aliasing.
-module audio_spectrum(input wire clk,rst,sample_ce,
+module audio_spectrum #(parameter ENABLE_SCOPE=1'b1)(input wire clk,rst,sample_ce,
     input wire signed [15:0] sample,
     output reg write_enable=0, output reg [9:0] write_address=0,
     output reg [7:0] write_value=0,
     output reg frame_done=0, input wire frame_ack,
     output reg bin_valid=0, output reg [8:0] bin_index=0,
-    output reg [15:0] bin_magnitude=0);
+    output reg [15:0] bin_magnitude=0,
+    output wire signed [15:0] bin_real,bin_imag,output wire bin_frame_start,output reg [31:0] frame_sample_index=0);
     localparam CAPTURE=0,CAP_WRITE=1,CAP_NEXT=2,ISSUE_A=3,WAIT_A=4,GET_A=5,
         WAIT_B=6,GET_B=7,MULTIPLY=8,ROTATE=9,WRITE_A=10,WRITE_B=11,NEXT=12,
         OUT_ISSUE=13,OUT_WAIT=14,OUT_VALUE=15,ACK_WAIT=16;
     reg [4:0] state=CAPTURE;
+    reg [31:0] stream_sample_index=0;
+    always @(posedge clk) begin
+        if(rst) stream_sample_index<=0;
+        else if(sample_ce) stream_sample_index<=stream_sample_index+1'b1;
+    end
     reg [11:0] capture_index=0,group_base=0,offset=0,read_address=0;
     reg [3:0] stage=0;
     wire [12:0] half_size=13'd1<<stage;
@@ -35,6 +41,8 @@ module audio_spectrum(input wire clk,rst,sample_ce,
     wire signed [18:0] sum_i=$signed(a_imag)+$signed(rotated_imag);
     wire signed [18:0] diff_r=$signed(a_real)-$signed(rotated_real);
     wire signed [18:0] diff_i=$signed(a_imag)-$signed(rotated_imag);
+    assign bin_real=read_real; assign bin_imag=read_imag;
+    assign bin_frame_start=bin_valid && bin_index==0;
     wire [15:0] abs_r=read_real[15] ? -read_real : read_real;
     wire [15:0] abs_i=read_imag[15] ? -read_imag : read_imag;
     wire [16:0] magnitude={1'b0,abs_r}+{1'b0,abs_i};
@@ -70,13 +78,14 @@ module audio_spectrum(input wire clk,rst,sample_ce,
     always @(posedge clk) begin
         write_enable<=0; bin_valid<=0;
         if(rst) begin state<=CAPTURE; capture_index<=0; group_base<=0; offset<=0; stage<=0;
-            frame_done<=0; read_address<=0; bin_index<=0; end
+            frame_done<=0; read_address<=0; bin_index<=0; frame_sample_index<=0; end
         else case(state)
         CAPTURE: if(sample_ce) begin
             windowed<=sample*window_value; input_sample<=sample; state<=CAP_WRITE;
+            if(capture_index==0) frame_sample_index<=stream_sample_index;
         end
         CAP_WRITE: begin
-            if(capture_index<512) begin
+            if(ENABLE_SCOPE && capture_index<512) begin
                 write_enable<=1; write_address<={1'b0,capture_index[8:0]};
                 if(scope_scaled>100) write_value<=100;
                 else if(scope_scaled< -100) write_value<=-8'sd100;

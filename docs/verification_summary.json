@@ -1,0 +1,246 @@
+{
+  "baseline_commit": "97c4f0a8d49f3b0091a7c928ba9f830fbacb5761",
+  "date": "2026-10-09",
+  "evidence": "RTL simulation; physical board untested",
+  "simulator": "XSim 2018.3",
+  "tests": [
+    {
+      "test": "tb_controls",
+      "passed": true,
+      "checks": [
+        "PASS: independent note/control keys, volume bounds, preset edge, long gesture, offline release"
+      ],
+      "log_sha256": "6bc0115dfb690ba59fe103ca77c95ef3794507be9a929b050d01f0e7bbca3e84"
+    },
+    {
+      "test": "tb_echo",
+      "passed": true,
+      "checks": [
+        "PASS: block RAM startup mask, exact delay, quarter-level echo and bypass"
+      ],
+      "log_sha256": "8513e9bd02e3bf71370d973477072b1a091690982b02cecb4ff30d077b885417"
+    },
+    {
+      "test": "tb_synthesis",
+      "passed": true,
+      "checks": [
+        "PASS: eight simultaneous independent voices and stable sustain",
+        "PASS: four presets, ADSR attack/decay/sustain/release",
+        "PASS: vibrato, volume ramp and note retrigger"
+      ],
+      "log_sha256": "f6380fbeafe4029d02302c46d03a087bbcbda74fa24162a1d6a5caed4e73ae18"
+    },
+    {
+      "test": "tb_touch_link",
+      "passed": true,
+      "checks": [
+        "PASS: init/readback, each of 12 touch bits, simultaneous keys, release",
+        "PASS: debounce configured, default echo bypass, one attack per held key, next-note preset and LED",
+        "PASS: NACK clears status and retries initialization",
+        "PASS: overcurrent status triggers reinitialization",
+        "PASS: stuck SCL timeout releases open-drain pins",
+        "PASS: I2C touch -> note gates -> synthesis -> decoded stereo I2S (192 frames)",
+        "PASS: integrated spectrum mode entry/reset/exit and continuous BCK spacing"
+      ],
+      "log_sha256": "6361ea56a03fc723b1ca686c8dc385be9a9cfa0488d5e5d19fc2345e5d3cc8d2"
+    },
+    {
+      "test": "tb_board_clock",
+      "passed": true,
+      "checks": [
+        "PASS: board top 50 MHz, BCK 3.125 MHz, LRCK 48.828125 kHz; 256 continuous frames"
+      ],
+      "log_sha256": "1dc823a71a300a4721214ce6cdb685b9fff5b175de8c3850aaab8a2f6b4ad863"
+    },
+    {
+      "test": "tb_spectrum",
+      "passed": true,
+      "checks": [
+        "PASS: 4096-point spectrum, silence/two tones/eight notes; golden comparison in Python"
+      ],
+      "log_sha256": "63432904bb5cb1b4df3e9aa692eac3292bbbd8e9ca6d5bed208f49897bb458cf"
+    },
+    {
+      "test": "tb_video",
+      "passed": true,
+      "checks": [
+        "PASS: TMDS round-trip/disparity; 800x600 raster, porches, syncs and rendered RGB"
+      ],
+      "log_sha256": "72723b51c5ab3394f0bd11197c419f717ca7165afc7a74903caa094544b21b0d"
+    },
+    {
+      "test": "tb_visual_link",
+      "passed": true,
+      "checks": [
+        "PASS: coherent status mailbox, three double-buffer handoffs, 14-note manual guide"
+      ],
+      "log_sha256": "ebceba78fc00b1bc67d10c56b30736447c58aad9b5021d774b74754b6ad7358d"
+    },
+    {
+      "test": "tb_serial_video",
+      "passed": true,
+      "checks": [
+        "PASS: three serialized TMDS channels and clock, >500 pixels decoded using OSER10"
+      ],
+      "log_sha256": "ac6736745f77f16aa2fcde7b6075406392ac8542a8bb9c418de7b7a498c0d5ee"
+    },
+    {
+      "test": "tb_latency",
+      "passed": true,
+      "checks": [
+        "PASS: touch-status to decoded nonzero I2S maximum 106830 ns over 8 phases"
+      ],
+      "log_sha256": "ba487d057182a216f752a50299e8091494e67c10c5407c4750b9b6adf1abae0c"
+    },
+    {
+      "test": "tb_waveform",
+      "passed": true,
+      "checks": [
+        "PASS: rising-zero trigger, silence timeout, 512 ordered signed samples, clipping, ownership pause, reset"
+      ],
+      "log_sha256": "e32685b08c4aaedd41168d12a72d51cf3959fac0d17843781b40eca13f288c0f"
+    },
+    {
+      "test": "tb_screen_feedback",
+      "passed": true,
+      "checks": [
+        "PASS: held/tail/idle keys, relative borders, ADSR meter, frame latch, guide overlay, signed connected trace"
+      ],
+      "log_sha256": "bf7f686e17419e9928b12cad7ae75d52b74eb3c83c82d2828e57d1baf5144c35"
+    },
+    {
+      "test": "tb_listening_port",
+      "passed": true,
+      "checks": [
+        "PASS: source identity, signed PCM, monotonically indexed samples, result handshake, wall-clock stale expiry, reset"
+      ],
+      "log_sha256": "40b7f3bfe015177a97f4c97a3a984783680e00aa08266e1f5a8722afca4b5eb1"
+    },
+    {
+      "test": "tb_scope_link",
+      "passed": true,
+      "checks": [
+        "PASS: independent scope publication interval 16579200 ns",
+        "PASS: independent scope publication interval 16579200 ns",
+        "PASS: independent scope publication interval 16579200 ns",
+        "PASS: four coherent independent waveform frames at real 48828.125 Hz PCM / 800x600 raster clocks"
+      ],
+      "log_sha256": "c93666c2b42843a0c3e01e65e555f7647d4ec5263f808eaca92fb5c234e56eba"
+    },
+    {
+      "test": "tb_top_integration",
+      "passed": true,
+      "checks": [
+        "PASS: full primitive-backed top, 54 scope frames before first FFT, compact banks, idle PCM, inactive result port"
+      ],
+      "log_sha256": "8781a9adcde934abbea823014bcb227729fc92bdd6284b794814d0824805a4f0"
+    }
+  ],
+  "audio": {
+    "evidence_type": "RTL simulation, not physical audio capture",
+    "nominal_sample_rate_hz": 48828.125,
+    "independent_voices": 8,
+    "spectral_peaks": [
+      {
+        "target_hz": 261.6255653005986,
+        "fft_bin_hz": 262.26043701171875,
+        "relative_peak": 0.8906589951910969
+      },
+      {
+        "target_hz": 293.6647679174076,
+        "fft_bin_hz": 293.5528755187988,
+        "relative_peak": 0.9989179518906283
+      },
+      {
+        "target_hz": 329.6275569128699,
+        "fft_bin_hz": 329.3156623840332,
+        "relative_peak": 0.9744939696843147
+      },
+      {
+        "target_hz": 349.2282314330039,
+        "fft_bin_hz": 348.68717193603516,
+        "relative_peak": 0.9202539285927698
+      },
+      {
+        "target_hz": 391.99543598174927,
+        "fft_bin_hz": 391.90053939819336,
+        "relative_peak": 1.0
+      },
+      {
+        "target_hz": 440.0,
+        "fft_bin_hz": 439.58425521850586,
+        "relative_peak": 0.95328392692487
+      },
+      {
+        "target_hz": 493.8833012561241,
+        "fft_bin_hz": 493.2284355163574,
+        "relative_peak": 0.8837563747476725
+      },
+      {
+        "target_hz": 523.2511306011972,
+        "fft_bin_hz": 523.0307579040527,
+        "relative_peak": 0.9885833283832093
+      }
+    ],
+    "gain_quarter_ratio": 0.2495488749445009,
+    "preset_harmonics_1_2_3_5": [
+      [
+        1.0,
+        1.2275174229138192e-05,
+        1.6098027443481302e-05,
+        3.4313288737744775e-06
+      ],
+      [
+        1.0,
+        0.000480412445835598,
+        0.31421621444116377,
+        0.174560104376852
+      ],
+      [
+        1.0,
+        0.4890271099992912,
+        0.31419111736673144,
+        0.17451571571924868
+      ],
+      [
+        1.0,
+        0.9851421206433885,
+        0.0008647272571981404,
+        0.639154318402689
+      ]
+    ],
+    "captured_peak_pcm16": 9140,
+    "checks_passed": true
+  },
+  "visual": {
+    "evidence": "RTL simulation, not physical screen capture",
+    "fft_length": 4096,
+    "sample_rate": 48828.125,
+    "bin_hz": 11.920928955078125,
+    "window": "Hann",
+    "display_bins": 512,
+    "checks": [
+      {
+        "scenario": 0,
+        "max_complex_error_pcm_units": 0.0
+      },
+      {
+        "scenario": 1,
+        "max_complex_error_pcm_units": 9.210838670571723
+      },
+      {
+        "scenario": 2,
+        "max_complex_error_pcm_units": 8.511664576070768
+      }
+    ],
+    "checks_passed": true
+  },
+  "scope_publication_interval_ns": 16579200,
+  "scope_publication_hz": 60.31654120826095,
+  "digital_latency_max_ns": 106830,
+  "gowin_build": {
+    "passed": false,
+    "blocker": "License hostid not match; synthesis/place-and-route not completed"
+  },
+  "top_test": "Accelerated sample/blank enables with actual Gowin PLL/serializer primitive models; physical timing covered separately by tb_scope_link."
+}

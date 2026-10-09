@@ -3,17 +3,21 @@ module tb_spectrum;
     reg clk=0; always #10 clk=~clk;
     reg rst=1,ce=0,ack=0;
     reg signed [15:0] sample=0;
+    wire signed [15:0] bin_real,bin_imag;wire frame_start;wire [31:0] frame_index;
     wire done,valid; wire [8:0] bin; wire [15:0] magnitude;
     audio_spectrum dut(.clk(clk),.rst(rst),.sample_ce(ce),.sample(sample),
         .write_enable(),.write_address(),.write_value(),.frame_done(done),.frame_ack(ack),
-        .bin_valid(valid),.bin_index(bin),.bin_magnitude(magnitude));
+        .bin_valid(valid),.bin_index(bin),.bin_magnitude(magnitude),
+        .bin_real(bin_real),.bin_imag(bin_imag),.bin_frame_start(frame_start),.frame_sample_index(frame_index));
     integer outputs,inputs,scenario=0,count=0,n,v;
     real phase,value,freq;
     integer midi[0:7]='{60,62,64,65,67,69,71,72};
     always @(posedge clk) if(valid) begin
         if(bin!==count[8:0] || $isunknown(magnitude)) $fatal(1,"FFT bin sequence/data");
-        $fdisplay(outputs,"%0d,%0d,%0d,%0d,%0d",scenario,bin,magnitude,$signed(dut.read_real),$signed(dut.read_imag));
+        $fdisplay(outputs,"%0d,%0d,%0d,%0d,%0d",scenario,bin,magnitude,$signed(bin_real),$signed(bin_imag));
         if(scenario==0 && magnitude!=0) $fatal(1,"Silence spectrum");
+        if(frame_start !== (count==0)) $fatal(1,"FFT frame marker");
+        if(frame_index !== scenario*4096) $fatal(1,"FFT capture timestamp");
         count=count+1;
     end
     initial begin

@@ -14,9 +14,9 @@ Push-Location $PSScriptRoot
 try {
     $sources=Get-ChildItem ../src/*.v | ForEach-Object FullName
     if(!(Test-Path $GowinSimLib)) { throw "Gowin GW5A simulation library not found: $GowinSimLib" }
-    & $xvlog --sv $GowinSimLib @sources tb_controls.sv tb_echo.sv tb_synthesis.sv tb_touch_link.sv tb_board_clock.sv tb_spectrum.sv tb_video.sv tb_visual_link.sv tb_serial_video.sv tb_latency.sv
+    & $xvlog --sv $GowinSimLib @sources tb_controls.sv tb_echo.sv tb_synthesis.sv tb_touch_link.sv tb_board_clock.sv tb_spectrum.sv tb_video.sv tb_visual_link.sv tb_serial_video.sv tb_latency.sv tb_waveform.sv tb_screen_feedback.sv tb_listening_port.sv tb_scope_link.sv tb_top_integration.sv
     if($LASTEXITCODE) { throw 'RTL compilation failed' }
-    foreach($test in @('tb_controls','tb_echo','tb_synthesis','tb_touch_link','tb_board_clock','tb_spectrum','tb_video','tb_visual_link','tb_serial_video','tb_latency')) {
+    foreach($test in @('tb_controls','tb_echo','tb_synthesis','tb_touch_link','tb_board_clock','tb_spectrum','tb_video','tb_visual_link','tb_serial_video','tb_latency','tb_waveform','tb_screen_feedback','tb_listening_port','tb_scope_link','tb_top_integration')) {
         & $xelab $test -s $test -debug typical
         if($LASTEXITCODE) { throw "Elaboration failed: $test" }
         & $xsim $test -runall

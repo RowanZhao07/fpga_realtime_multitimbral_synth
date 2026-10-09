@@ -7,7 +7,7 @@ module instrument_core #(
     output wire dac_bck, dac_lrck, dac_din,
     output wire [7:0] led,
     output wire [39:0] status, output wire signed [15:0] monitor_sample,
-    output wire monitor_ce
+    output wire monitor_ce, output wire [63:0] voice_levels
 );
     wire echo_enabled,guide_enabled;
     wire [2:0] guide_target;
@@ -26,7 +26,7 @@ module instrument_core #(
         .volume(volume),.vibrato(vibrato),.spectrum_mode(spectrum_mode),.echo_enabled(echo_enabled),.guide_enabled(guide_enabled));
     polyphonic_engine engine(.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
         .timbre(spectrum_mode ? 2'b0 : timbre),.vibrato(vibrato),
-        .mixed(mixed),.valid(valid),.active(active));
+        .mixed(mixed),.valid(valid),.active(active),.voice_levels(voice_levels));
     audio_output output_stage(.clk(clk),.rst(audio_reset),.valid(valid),.mixed(mixed),
         .volume(spectrum_mode ? 13'd2048 : volume),.echo_enable((ENABLE_ECHO || echo_enabled) && !spectrum_mode),
         .sample(sample),.clipped(clipped));

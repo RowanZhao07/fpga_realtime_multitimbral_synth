@@ -9,7 +9,8 @@ module tb_video;
     // Deterministic input fixtures for visual layout; not claimed as board audio.
     reg [39:0] status=0;
     instrument_screen screen(.clk(clk),.rst(rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
-        .vertical_blank(blank),.status(status),.visual_ready(1'b1),.visual_data(data),
+        .vertical_blank(blank),.status(status),.voice_levels(64'h0000005000B000CC),
+        .scope_ready(1'b1),.scope_data(data),.scope_address(),.visual_ready(1'b1),.visual_data(data),
         .visual_address(addr),.rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     always @(posedge clk) begin
         if(!addr[9]) data<=$rtoi(65*$sin(6.2831853*addr[8:0]/128));
@@ -41,7 +42,7 @@ module tb_video;
             for(bitn=0;bitn<10;bitn=bitn+1) rd=rd+(symbol[bitn] ? 1 : -1);
             if(rd>8 || rd< -8) $fatal(1,"TMDS running disparity bound");
         end
-        status={2'b0,1'b0,6'd4,3'd5,1'b1,1'b0,1'b1,1'b1,1'b1,5'd12,2'd2,8'h15,8'h15};
+        status={2'b0,1'b0,6'd4,3'd5,1'b1,1'b0,1'b1,1'b1,1'b1,5'd12,2'd2,8'h15,8'h01};
         wait(blank); @(negedge clk);
         wait(x==0 && y==0);
         f=$fopen("screen.ppm","wb"); $fwrite(f,"P6\n800 600\n255\n");

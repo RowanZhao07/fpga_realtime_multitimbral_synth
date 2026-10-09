@@ -6,7 +6,7 @@ module polyphonic_engine (
     input wire vibrato,
     output reg signed [18:0] mixed=0,
     output reg valid=0,
-    output wire [7:0] active
+    output wire [7:0] active, output wire [63:0] voice_levels
 );
     reg [23:0] lfo_phase=0;
     wire [7:0] folded=lfo_phase[23] ? ~lfo_phase[22:15] : lfo_phase[22:15];
@@ -24,7 +24,7 @@ module polyphonic_engine (
         wire [31:0] step= vibrato ? base_step+deviation[31:0] : base_step;
         synthesis_voice voice(.clk(clk),.rst(rst),.sample_ce(sample_ce),
             .gate(gates[v]),.phase_step(step),.timbre(timbre),
-            .sample(voices[v]),.active(active[v]));
+            .sample(voices[v]),.active(active[v]),.envelope_level(voice_levels[v*8+:8]));
     end endgenerate
     reg [4:0] pipeline=0;
     reg signed [16:0] pair0=0,pair1=0,pair2=0,pair3=0;
