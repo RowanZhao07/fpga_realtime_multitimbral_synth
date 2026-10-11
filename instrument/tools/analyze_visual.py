@@ -21,6 +21,8 @@ for scenario in range(3):
         assert max(abs(actual[100:]))<12
     checks.append({'scenario':scenario,'max_complex_error_pcm_units':float(error)})
 Image.open(root/'sim/screen.ppm').save(output/'screen_preview.png')
+Image.open(root/'sim/screen_debug.ppm').save(output/'screen_debug_preview.png')
+Image.open(root/'sim/screen_offline.ppm').save(output/'screen_offline_preview.png')
 (output/'visual_analysis.json').write_text(json.dumps({
     'evidence':'RTL simulation, not physical screen capture',
     'fft_length':4096,'sample_rate':48828.125,'bin_hz':48828.125/4096,

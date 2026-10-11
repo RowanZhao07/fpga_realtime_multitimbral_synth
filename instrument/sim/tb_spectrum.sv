@@ -4,10 +4,22 @@ module tb_spectrum;
     reg rst=1,ce=0,ack=0;
     reg signed [15:0] sample=0;
     wire done,valid; wire [8:0] bin; wire [15:0] magnitude;
+    wire scope_write;wire [9:0] scope_address;wire [7:0] scope_value;
     audio_spectrum dut(.clk(clk),.rst(rst),.sample_ce(ce),.sample(sample),
-        .write_enable(),.write_address(),.write_value(),.frame_done(done),.frame_ack(ack),
+        .write_enable(scope_write),.write_address(scope_address),.write_value(scope_value),.frame_done(done),.frame_ack(ack),
         .bin_valid(valid),.bin_index(bin),.bin_magnitude(magnitude));
     integer outputs,inputs,scenario=0,count=0,n,v;
+    integer expected_scope,scope_pixels=0;
+    always @(negedge clk) if(!rst && scope_write && !scope_address[9]) begin
+        // A fixed 4x zoom maps +/-8192 PCM to the plot limits, with no AGC.
+        expected_scope=$signed(dut.input_sample)>>>6;
+        if(expected_scope>127) expected_scope=127;
+        if(expected_scope< -128) expected_scope=-128;
+        if($signed(scope_value)!==expected_scope)
+            $fatal(1,"Fixed-scale PCM scope mismatch: input=%0d got=%0d expected=%0d",$signed(dut.input_sample),$signed(scope_value),expected_scope);
+        scope_pixels=scope_pixels+1;
+    end
+
     real phase,value,freq;
     integer midi[0:7]='{60,62,64,65,67,69,71,72};
     always @(posedge clk) if(valid) begin
@@ -36,6 +48,7 @@ module tb_spectrum;
             if(count!=512) $fatal(1,"Missing FFT bins");
             ack=1; @(negedge clk); ack=0; repeat(3) @(negedge clk);
         end
+        if(scope_pixels!=1536) $fatal(1,"Missing PCM scope samples");
         $fclose(outputs); $fclose(inputs);
         $display("PASS: 4096-point spectrum, silence/two tones/eight notes; golden comparison in Python");
         $display("ALL TESTS PASSED"); $finish;

@@ -21,7 +21,7 @@ lines += ['    endcase', 'endmodule', '']
 lines = ['`timescale 1ns/1ps', f'// Tuning for {fs:.8f} samples/second.',
          'module note_frequency #(parameter integer KEY=0)(output wire [31:0] step);',
          '    function [31:0] lookup;', '        input integer k;', '        begin case(k)']
-for i, midi in enumerate([60, 62, 64, 65, 67, 69, 71, 72]):
+for i, midi in enumerate([60, 62, 64, 65, 67, 69, 71, 72, 61, 63, 66, 68, 70]):
     freq = 440 * 2**((midi-69)/12)
     inc = round(freq/fs*2**32)
     lines.append(f"            {i}: lookup=32'd{inc}; // MIDI {midi}, {freq:.6f} Hz")

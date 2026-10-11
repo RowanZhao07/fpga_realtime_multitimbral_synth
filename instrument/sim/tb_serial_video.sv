@@ -36,13 +36,19 @@ module tb_serial_video;
         end
     end
     initial begin
+      for(integer phase=0;phase<2;phase=phase+1) begin
         repeat(10) @(negedge pclk);rst=0;
         for(integer i=0;i<512;i=i+1) begin
             @(negedge pclk);rgb=(i*24'h193753)^24'hAB834D;de=(i%37)>3;{vs,hs}=i;
         end
         repeat(10) @(negedge pclk);
         if(!aligned || consumed<500) $fatal(1,"No serial alignment");
-        $display("PASS: three serialized TMDS channels and clock, >500 pixels decoded using OSER10");
+        $display("PASS: three serialized TMDS channels and clock, >500 pixels decoded, reset cycle %d",phase);
+        // Interrupt between clock edges and verify alignment after reset again.
+        #1;rst=1;#1;
+        produced=0;consumed=0;edges=0;aligned=0;
+        shift_b=0;shift_g=0;shift_r=0;shift_c=0;
+      end
         $display("ALL TESTS PASSED");$finish;
     end
     initial begin #50000;$fatal(1,"Serializer watchdog");end

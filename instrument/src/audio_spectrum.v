@@ -78,8 +78,10 @@ module audio_spectrum(input wire clk,rst,sample_ce,
         CAP_WRITE: begin
             if(capture_index<512) begin
                 write_enable<=1; write_address<={1'b0,capture_index[8:0]};
-                if(scope_scaled>100) write_value<=100;
-                else if(scope_scaled< -100) write_value<=-8'sd100;
+                // Fixed 4x display zoom: +/-8192 PCM spans the scope; the
+                // renderer maps two stored units to one vertical pixel.
+                if(scope_scaled>127) write_value<=127;
+                else if(scope_scaled< -128) write_value<=8'h80;
                 else write_value<=scope_scaled[7:0];
             end
             state<=CAP_NEXT;

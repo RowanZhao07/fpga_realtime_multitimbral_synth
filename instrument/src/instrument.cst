@@ -1,13 +1,36 @@
 // Tang Mega 60K NEO J13: schematic p19 physical pin -> SDRAM0_Dn;
 // Sipeed TangMega-60K-example/sdram_neo/src/sdram.cst -> 60K FPGA ball.
-// These are NOT the shared 138K board silkscreen ball names.
+// A: J13-1/2. B: J13-13/14 (SDRAM0_D13/D12). Both addresses 0x5A.
 IO_LOC "mpr_scl" E14;
 IO_LOC "mpr_sda" E13;
+IO_LOC "mpr_b_scl" A16;
+IO_LOC "mpr_b_sda" A15;
+// ADS1115: J13-15/16 (SDRAM0_D11/D10), ADDR=GND -> 0x48.
+IO_LOC "pressure_scl" A20;
+IO_LOC "pressure_sda" B20;
+// SN74HC595: J13-17/18/19/20 -> D9/D8/A12/CLK. All are 3.3V GPIO here.
+IO_LOC "led_ser" A21;
+IO_LOC "led_srclk" B21;
+IO_LOC "led_rclk" B18;
+IO_LOC "led_oe_n" B17;
+// UART: J13-21=A9/C17 receives module TXD; J13-22=A11/D17 drives RXD.
+IO_LOC "control_rx" C17;
+IO_LOC "control_tx" D17;
+IO_PORT "control_rx" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
+IO_PORT "control_tx" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP DRIVE=4;
+IO_PORT "led_ser" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=DOWN DRIVE=4;
+IO_PORT "led_srclk" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=DOWN DRIVE=4;
+IO_PORT "led_rclk" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=DOWN DRIVE=4;
+IO_PORT "led_oe_n" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP DRIVE=4;
 IO_LOC "dac_bck" C15;
 IO_LOC "dac_lrck" C14;
 IO_LOC "dac_din" B13;
 IO_PORT "mpr_scl" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
 IO_PORT "mpr_sda" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
+IO_PORT "mpr_b_scl" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
+IO_PORT "mpr_b_sda" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
+IO_PORT "pressure_scl" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
+IO_PORT "pressure_sda" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
 IO_PORT "dac_bck" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
 IO_PORT "dac_lrck" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
 IO_PORT "dac_din" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=4;
@@ -47,3 +70,24 @@ IO_PORT "hpd_en" IO_TYPE=LVCMOS33 PULL_MODE=UP DRIVE=12 BANK_VCCIO=3.3;
 CLOCK_LOC "pixel_clk" BUFG = CLK;
 CLOCK_LOC "serial_clk" BUFG = CLK;
 INS_LOC "display_clock/pll" PLL_R[0];
+
+// Keep each serializer's reset-release flops beside its local reset LUT.
+// Unconstrained lane 0 placed a flop at R18C92 but its LUT at R5C125,
+// violating FCLK falling-edge recovery. These are fabric placements only;
+// all pixel/serial setup, hold, recovery and removal checks remain enabled.
+INS_LOC "transmitter/lanes[0].reset_pipe_0_s1" R5C125;
+INS_LOC "transmitter/lanes[0].reset_pipe_1_s1" R5C125;
+INS_LOC "transmitter/lanes[0].reset_pipe_2_s1" R5C125;
+INS_LOC "transmitter/lanes[0].reset_gate" R5C125;
+INS_LOC "transmitter/lanes[1].reset_pipe_0_s1" R4C126;
+INS_LOC "transmitter/lanes[1].reset_pipe_1_s1" R4C126;
+INS_LOC "transmitter/lanes[1].reset_pipe_2_s1" R4C126;
+INS_LOC "transmitter/lanes[1].reset_gate" R4C126;
+INS_LOC "transmitter/lanes[2].reset_pipe_0_s1" R5C126;
+INS_LOC "transmitter/lanes[2].reset_pipe_1_s1" R5C126;
+INS_LOC "transmitter/lanes[2].reset_pipe_2_s1" R5C126;
+INS_LOC "transmitter/lanes[2].reset_gate" R5C126;
+INS_LOC "transmitter/lanes[3].reset_pipe_0_s1" R4C126;
+INS_LOC "transmitter/lanes[3].reset_pipe_1_s1" R4C126;
+INS_LOC "transmitter/lanes[3].reset_pipe_2_s1" R4C126;
+INS_LOC "transmitter/lanes[3].reset_gate" R4C126;

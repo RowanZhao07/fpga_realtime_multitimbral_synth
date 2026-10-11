@@ -12,6 +12,11 @@ module note_frequency #(parameter integer KEY=0)(output wire [31:0] step);
             5: lookup=32'd38702809; // MIDI 69, 440.000000 Hz
             6: lookup=32'd43442435; // MIDI 71, 493.883301 Hz
             7: lookup=32'd46025656; // MIDI 72, 523.251131 Hz
+            8: lookup=32'd24381242; // MIDI 61, 277.182631 Hz
+            9: lookup=32'd27367019; // MIDI 63, 311.126984 Hz
+            10: lookup=32'd32545054; // MIDI 66, 369.994423 Hz
+            11: lookup=32'd36530588; // MIDI 68, 415.304698 Hz
+            12: lookup=32'd41004198; // MIDI 70, 466.163762 Hz
             default: lookup=0;
         endcase end
     endfunction

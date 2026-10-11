@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
-// Sample-synchronous linear ADSR. Re-trigger attacks from the current level.
+// Sample-synchronous envelopes. Re-trigger attacks from the current level.
+// Electric keys decay exponentially; strings swell and retain a longer tail.
 module envelope_adsr (
     input wire clk, rst, sample_ce, gate,
     input wire [1:0] timbre,
@@ -10,10 +11,12 @@ module envelope_adsr (
     reg [2:0] state=IDLE;
     reg previous_gate=0;
     reg [1:0] preset=0;
-    wire [15:0] attack_step= preset==0 ? 16'd512 : preset==1 ? 16'd2048 : preset==2 ? 16'd1024 : 16'd4096;
+    wire [15:0] attack_step= preset==0 ? 16'd512 : preset==1 ? 16'd1024 : preset==2 ? 16'd32 : 16'd4096;
     wire [15:0] decay_step= preset==1 ? 16'd12 : preset==3 ? 16'd4 : 16'd8;
-    wire [15:0] sustain_level= preset==0 ? 16'd50000 : preset==1 ? 16'd44000 : preset==2 ? 16'd50000 : 16'd0;
-    wire [15:0] release_step= preset==0 ? 16'd16 : preset==1 ? 16'd8 : preset==2 ? 16'd24 : 16'd6;
+    wire [15:0] sustain_level= preset==0 ? 16'd50000 : preset==1 ? 16'd0 : preset==2 ? 16'd50000 : 16'd0;
+    wire [15:0] piano_decay=level>=8192 ? (level>>13) : 16'd1;
+    wire [15:0] release_step= preset==0 ? 16'd16 :
+        preset==1 ? (level>=1024 ? (level>>10) : 16'd1) : preset==2 ? 16'd6 : 16'd6;
     assign active=(level!=0);
     always @(posedge clk) begin
         if(rst) begin level<=0; state<=IDLE; previous_gate<=0; preset<=0; end
@@ -25,7 +28,11 @@ module envelope_adsr (
                 IDLE: level<=0;
                 ATTACK: if(level>=16'hFFFF-attack_step) begin level<=16'hFFFF; state<=DECAY; end
                         else level<=level+attack_step;
-                DECAY: if(level<=sustain_level+decay_step) begin level<=sustain_level; state<=SUSTAIN; end
+                DECAY: if(preset==1) begin
+                           if(level<=piano_decay) begin level<=0;state<=SUSTAIN;end
+                           else level<=level-piano_decay;
+                       end
+                       else if(level<=sustain_level+decay_step) begin level<=sustain_level; state<=SUSTAIN; end
                        else level<=level-decay_step;
                 SUSTAIN: level<=sustain_level;
                 RELEASE: if(level<=release_step) begin level<=0; state<=IDLE; end

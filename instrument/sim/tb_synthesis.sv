@@ -2,10 +2,10 @@
 module tb_synthesis;
     reg clk=0; always #10 clk=~clk;
     reg rst=1,ce=0,vibrato=0;
-    reg [7:0] gates=0;
+    reg [12:0] gates=0;
     reg [1:0] timbre=0;
     wire signed [18:0] mixed;
-    wire valid; wire [7:0] active;
+    wire valid; wire [12:0] active;
     polyphonic_engine dut(.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .timbre(timbre),.vibrato(vibrato),.mixed(mixed),.valid(valid),.active(active));
     reg [12:0] volume=4096;
@@ -14,7 +14,7 @@ module tb_synthesis;
     wire clipped;
     audio_output output_stage(.clk(clk),.rst(rst),.valid(valid),.mixed(mixed),
         .volume(volume),.echo_enable(echo),.sample(sample),.clipped(clipped));
-    integer f,n,scenario=0;
+    integer f,n,scenario=0,expected_mix;
     task frame;
         begin
             @(negedge clk); ce=1;
@@ -25,6 +25,11 @@ module tb_synthesis;
                 $fatal(1,"Unknown sample");
             end
             if(clipped) $fatal(1,"Unexpected clipping");
+            expected_mix=0;
+            for(integer voice_index=0;voice_index<13;voice_index=voice_index+1)
+                expected_mix=expected_mix+$signed(dut.voices[voice_index]);
+            if($signed(mixed)!=expected_mix)
+                $fatal(1,"Mixer changed independent voice gains or truncated the sum");
         end
     endtask
     task frames(input integer count);
@@ -63,6 +68,12 @@ module tb_synthesis;
         gates=1; frames(1000);
         if(dut.voice_bank[0].voice.amplitude.level==0) $fatal(1,"Retrigger failed");
         $display("PASS: vibrato, volume ramp and note retrigger");
+        gates=0; frames(12000);
+        gates=13'h1FFF; frames(10000); capture(9,32768);
+        if(active!==13'h1FFF) $fatal(1,"Thirteen independent voices did not activate");
+        gates=0; frames(12000);
+        if(active!=0 || sample!=0) $fatal(1,"Chromatic chord release did not reach silence");
+        $display("PASS: thirteen-note chromatic chord, no clipping and complete release");
         $fclose(f); $display("ALL TESTS PASSED"); $finish;
     end
     initial begin #1000000000; $fatal(1,"Simulation watchdog"); end

@@ -1,13 +1,17 @@
 `timescale 1ns/1ps
-// Single-master, open-drain register access. Read transactions fetch two bytes,
-// ACK the first, NACK the last. All timing uses clk enables (no fabric clocks).
+// Single-master, open-drain register access. Register addresses are MSB first;
+// reads store the first byte in result[7:0], NACK the last byte.
 module i2c_register_master #(
     parameter integer QUARTER = 125,
-    parameter integer TIMEOUT = 2500000
+    parameter integer TIMEOUT = 2500000,
+    parameter integer WRITE_BYTES = 1, // 1 or 2; two-byte writes are MSB first.
+    parameter integer REGISTER_BYTES = 1, // 1 or 2.
+    parameter integer READ_BYTES = 2 // 1 or 2.
 )(
     input wire clk, input wire rst,
     input wire start, input wire reading,
-    input wire [7:0] address, input wire [7:0] value,
+    input wire [6:0] device_address,
+    input wire [8*REGISTER_BYTES-1:0] address, input wire [8*WRITE_BYTES-1:0] value,
     output reg busy = 0, output reg done = 0, output reg failed = 0,
     output reg [15:0] result = 0,
     inout wire scl, inout wire sda
@@ -30,9 +34,12 @@ module i2c_register_master #(
     reg [15:0] divider = 0;
     reg [31:0] watchdog = 0;
     reg rd = 0, second = 0;
-    reg [1:0] tx_index = 0;
+    reg [6:0] device = 0;
+    reg [2:0] tx_index = 0;
     reg [2:0] bit_index = 7;
-    reg [7:0] reg_addr = 0, reg_value = 0, tx = 0, rx = 0;
+    reg [8*REGISTER_BYTES-1:0] reg_addr = 0;
+    reg [7:0] tx = 0, rx = 0;
+    reg [8*WRITE_BYTES-1:0] reg_value = 0;
     always @(posedge clk) begin
         done <= 0;
         if (rst) begin
@@ -43,7 +50,8 @@ module i2c_register_master #(
             if (start) begin
                 busy <= 1; failed <= 0; rd <= reading;
                 reg_addr <= address; reg_value <= value;
-                result <= 0; tx <= 8'hB4; tx_index <= 0;
+                device <= device_address;
+                result <= 0; tx <= {device_address,1'b0}; tx_index <= 0;
                 bit_index <= 7; second <= 0; state <= START_A;
             end
         end else if (watchdog == TIMEOUT-1) begin
@@ -77,18 +85,23 @@ module i2c_register_master #(
                         scl_low <= 1; bit_index <= 7;
                         if (failed) state <= STOP_A;
                         else if (tx_index == 0) begin
-                            tx <= reg_addr; tx_index <= 1; state <= TX_A;
-                        end else if (tx_index == 1) begin
-                            tx_index <= 2;
+                            tx <= reg_addr[8*REGISTER_BYTES-1 -: 8]; tx_index <= 1; state <= TX_A;
+                        end else if (REGISTER_BYTES==2 && tx_index==1) begin
+                            tx <= reg_addr[7:0]; tx_index <= 2; state <= TX_A;
+                        end else if (tx_index == REGISTER_BYTES) begin
+                            tx_index <= REGISTER_BYTES+1;
                             if (rd) state <= RESTART_A;
-                            else begin tx <= reg_value; state <= TX_A; end
+                            else begin tx <= reg_value[8*WRITE_BYTES-1 -: 8]; state <= TX_A; end
                         end else if (rd) state <= RX_A;
+                        else if (WRITE_BYTES==2 && tx_index==REGISTER_BYTES+1) begin
+                            tx <= reg_value[7:0]; tx_index <= REGISTER_BYTES+2; state <= TX_A;
+                        end
                         else state <= STOP_A;
                     end
                     RESTART_A: begin sda_low <= 0; state <= RESTART_B; end
                     RESTART_B: begin scl_low <= 0; state <= RESTART_C; end
                     RESTART_C: if (scl_sync[1]) begin
-                        sda_low <= 1; tx <= 8'hB5; state <= START_B;
+                        sda_low <= 1; tx <= {device,1'b1}; state <= START_B;
                     end
                     RX_A: begin sda_low <= 0; state <= RX_B; end
                     RX_B: begin scl_low <= 0; state <= RX_C; end
@@ -101,7 +114,7 @@ module i2c_register_master #(
                         else begin bit_index <= bit_index-3'd1; state <= RX_A; end
                     end
                     MACK_A: begin
-                        sda_low <= !second;
+                        sda_low <= READ_BYTES==2 && !second;
                         if (second) result[15:8] <= rx;
                         else result[7:0] <= rx;
                         state <= MACK_B;
@@ -110,7 +123,7 @@ module i2c_register_master #(
                     MACK_C: if (scl_sync[1]) state <= MACK_D;
                     MACK_D: begin
                         scl_low <= 1;
-                        if (second) state <= STOP_A;
+                        if (second || READ_BYTES==1) state <= STOP_A;
                         else begin second <= 1; bit_index <= 7; state <= RX_A; end
                     end
                     STOP_A: begin sda_low <= 1; state <= STOP_B; end

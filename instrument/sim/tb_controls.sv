@@ -2,18 +2,22 @@
 module tb_controls;
     reg clk=0; always #10 clk=~clk;
     reg rst=1,online=1,ce=1;
-    reg [11:0] touched=0;
-    wire [7:0] gates;
+    reg [17:0] touched=0;
+    wire [12:0] gates;
     wire [1:0] timbre;
     wire [12:0] volume;
     wire vibrato,spectrum_mode,echo_enabled,guide_enabled;
     performance_control #(.HOLD_SAMPLES(20),.REPEAT_SAMPLES(4)) dut(
         .clk(clk),.rst(rst),.sample_ce(ce),.online(online),.touched(touched),
-        .gates(gates),.timbre(timbre),.volume(volume),.vibrato(vibrato),.spectrum_mode(spectrum_mode),
+        .command_valid(1'b0),.command(8'd0),.value(16'd0),.gates(gates),.timbre(timbre),.volume(volume),.vibrato(vibrato),.spectrum_mode(spectrum_mode),
         .echo_enabled(echo_enabled),.guide_enabled(guide_enabled));
     task ticks(input integer n); repeat(n) @(negedge clk); endtask
     initial begin
         ticks(3); rst=0; ticks(2);
+        touched=18'h1F000; ticks(2);
+        if(gates!==13'h1F00) $fatal(1,"Five independent chromatic note gates");
+        touched=18'h20000; ticks(2);
+        if(gates!=0 || timbre!=0 || vibrato) $fatal(1,"X0 must remain reserved");
         touched=12'h095; ticks(2); if(gates!==8'h95) $fatal(1,"Polyphonic gates");
         touched=12'h195; ticks(10); if(timbre!=0) $fatal(1,"Premature preset change");
         touched=12'h095; ticks(2); if(timbre!=1 || gates!=8'h95) $fatal(1,"Preset release edge");

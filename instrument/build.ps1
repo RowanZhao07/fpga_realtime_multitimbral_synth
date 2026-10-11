@@ -17,5 +17,25 @@ try {
        $timingReport -notmatch '<Numbers of Hold Violated Endpoints>:0\s') {
         throw 'Timing verification failed; inspect setup/hold and recovery/removal paths before downloading'
     }
-    Get-FileHash 'impl/pnr/instrument.fs' -Algorithm SHA256
+    # Gowin's endpoint totals do not include minimum clock pulse-width failures.
+    $pulseTable=[regex]::Match($timingReport,'(?ms)^3\.2 Minimum Pulse Width Table\r?\n(.*?)^3\.3 Timing Report')
+    if(!$pulseTable.Success -or $pulseTable.Value -notmatch '(?m)^\s+\d+\s+[-+]?\d+\.\d+\s') {
+        throw 'Minimum pulse-width report missing; inspect timing before downloading'
+    }
+    if($pulseTable.Value -match '(?m)^\s+\d+\s+-\d+\.\d+\s') {
+        throw 'Minimum clock pulse-width violation; inspect timing before downloading'
+    }
+    # Publish only a fresh, timing-checked build. Moving avoids two runnable copies.
+    $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+    $releaseDir = Join-Path $repoRoot 'dist'
+    $releaseFile = [IO.Path]::GetFullPath((Join-Path $releaseDir 'instrument.fs'))
+    $buildFile = (Resolve-Path -LiteralPath 'impl/pnr/instrument.fs').Path
+    foreach($path in @($releaseFile, $buildFile)) {
+        if(!$path.StartsWith($repoRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+            throw "Build artifact outside repository: $path"
+        }
+    }
+    New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
+    Move-Item -LiteralPath $buildFile -Destination $releaseFile -Force
+    Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256
 } finally { Pop-Location }

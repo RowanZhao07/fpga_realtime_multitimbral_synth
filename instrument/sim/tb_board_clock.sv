@@ -4,10 +4,12 @@ module tb_board_clock;
     GSR GSR(.GSRI(1'b1));
     reg clk=0;
     always #10 clk=~clk;
-    tri1 scl, sda;
+    tri1 scl, sda, scl_b, sda_b, pressure_scl, pressure_sda;
     wire bck, lrck, din;
     wire [7:0] led;
-    instrument_top dut(.ref_clk(clk),.mpr_scl(scl),.mpr_sda(sda),
+    instrument_top dut(.control_rx(1'b1),.control_tx(),.ref_clk(clk),.mpr_scl(scl),.mpr_sda(sda),
+        .mpr_b_scl(scl_b),.mpr_b_sda(sda_b),
+        .pressure_scl(pressure_scl),.pressure_sda(pressure_sda),
         .dac_bck(bck),.dac_lrck(lrck),.dac_din(din),.led(led));
     time previous_bck=0, previous_frame=0;
     integer edges=0, frames=0;

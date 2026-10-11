@@ -27,6 +27,12 @@ __pycache__/
 /dist/
 /backups/
 /tmp/
+/.local/
+# Wiring drawings are local-only, including future exports.
+/hardware/
+*.drawio
+*.vsdx
+*.drawio.bkp
 *.zip
 # Editor / OS temporary files
 .vscode/

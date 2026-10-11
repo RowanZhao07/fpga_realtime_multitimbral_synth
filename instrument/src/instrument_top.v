@@ -1,9 +1,12 @@
 `timescale 1ns/1ps
 module instrument_top (
     input wire ref_clk, // On-board 50 MHz crystal, V22.
-    inout wire mpr_scl, mpr_sda,
+    inout wire mpr_scl, mpr_sda, mpr_b_scl, mpr_b_sda,
+    inout wire pressure_scl, pressure_sda,
     output wire dac_bck, dac_lrck, dac_din,
     output wire [7:0] led,
+    output wire led_ser,led_srclk,led_rclk,led_oe_n,
+    input wire control_rx,output wire control_tx,
     output wire [2:0] tmds_p,tmds_n,
     output wire tmds_clock_p,tmds_clock_n,hpd_en
 );
@@ -17,15 +20,33 @@ module instrument_top (
         else reset_release<={reset_release[6:0],1'b1};
     end
     wire online;
-    wire [11:0] touched;
+    wire [17:0] touched;
+    wire [1:0] chip_online;
     mpr121_controller touch(.clk(clk),.rst(rst),.scl(mpr_scl),.sda(mpr_sda),
-        .online(online),.touched(touched));
-    wire [39:0] status,pixel_status;
+        .scl_b(mpr_b_scl),.sda_b(mpr_b_sda),
+        .online(online),.chip_online(chip_online),.touched(touched));
+    wire pressure_online;
+    wire [11:0] pressure_mv;
+    ads1115_controller pressure(.clk(clk),.rst(rst),.scl(pressure_scl),.sda(pressure_sda),
+        .online(pressure_online),.millivolts(pressure_mv),.sample_valid());
+    wire [52:0] core_status;
+    wire [44:0] control_status;
+    wire [83:0] uart_diagnostics;
+    wire diagnostics_visible;
+    wire [7:0] volume_low;
+    wire [203:0] status={volume_low,diagnostics_visible,uart_diagnostics,control_status,pressure_online,pressure_mv,core_status};
+    wire [203:0] pixel_status;
     wire signed [15:0] monitor_sample;
     wire monitor_ce;
-    instrument_core core(.clk(clk),.rst(rst),.online(online),.touched(touched),
+    wire [7:0] key_lights;
+    instrument_core core(.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
+        .pressure_online(pressure_online),.pressure_mv(pressure_mv),
+        .control_rx(control_rx),.control_tx(control_tx),.control_status(control_status),.uart_diagnostics(uart_diagnostics),
+        .diagnostics_visible(diagnostics_visible),
         .dac_bck(dac_bck),.dac_lrck(dac_lrck),.dac_din(dac_din),.led(led),
-        .status(status),.monitor_sample(monitor_sample),.monitor_ce(monitor_ce));
+        .key_lights(key_lights),.volume_low(volume_low),.status(core_status),.monitor_sample(monitor_sample),.monitor_ce(monitor_ce));
+    hc595_driver key_led_driver(.clk(clk),.rst(rst),.lights(key_lights),
+        .serial_data(led_ser),.shift_clock(led_srclk),.latch_clock(led_rclk),.oe_n(led_oe_n));
     wire pixel_clk,serial_clk,video_locked;
     video_clock display_clock(.ref_clk(ref_clk),.pixel_clk(pixel_clk),
         .serial_clk(serial_clk),.locked(video_locked));
@@ -42,7 +63,7 @@ module instrument_top (
         else analyser_release<={analyser_release[1:0],1'b1};
     end
     wire analyser_rst=rst || !analyser_release[2];
-    status_mailbox mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data(status),
+    status_mailbox #(.WIDTH(204)) mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data(status),
         .dst_clk(pixel_clk),.dst_rst(video_rst),.dst_data(pixel_status));
     wire [10:0] x; wire [9:0] y;
     wire de,hs,vs,blank;
