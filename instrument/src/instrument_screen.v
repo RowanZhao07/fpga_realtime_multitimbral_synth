@@ -3,6 +3,8 @@
 module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
     input wire clk,rst,input wire [10:0] x,input wire [9:0] y,
     input wire de,hs,vs,vertical_blank,input wire [203:0] status,
+    input wire [103:0] voice_levels,
+    input wire scope_ready,input wire [7:0] scope_data,output wire [8:0] scope_address,
     input wire visual_ready,input wire [7:0] visual_data,
     output wire [9:0] visual_address,
     output reg [23:0] rgb=0,output reg out_de=0,out_hs=0,out_vs=0);
@@ -10,6 +12,8 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
     reg de0=0,hs0=0,vs0=0;
     reg de_delay=0,hs_delay=0,vs_delay=0;
     reg [7:0] plot_data=0;
+    reg signed [7:0] scope_plot=0,previous_scope=0;
+    reg scope_ready0=0,scope_plot_ready=0;
     reg ready0=0,plot_ready=0;
     wire [23:0] wallpaper_rgb;
     wire [2:0] wallpaper_index;
@@ -17,6 +21,7 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
         .clk(clk),.rst(rst),.vertical_blank(vertical_blank),.x(x),.y(y),
         .rgb(wallpaper_rgb),.image_index(wallpaper_index));
     reg [203:0] display_status=0;
+    reg [103:0] display_levels=0;
     wire diagnostics_visible=display_status[195];
     wire [83:0] uart_diagnostics=display_status[194:111];
     wire [7:0] uart_bytes=uart_diagnostics[83:76],uart_frames=uart_diagnostics[75:68];
@@ -41,8 +46,12 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
     wire [5:0] position=display_status[36:31];
     wire [10:0] plot_x=x-11'd28;
     assign visual_address={y>=396,plot_x[8:0]};
+    assign scope_address=plot_x[8:0];
     wire [10:0] key_offset=px-11'd28;
     wire [2:0] key_index=key_offset[8:6];
+    wire [7:0] key_level=display_levels>>(key_index*8);
+    wire [13:0] key_meter=key_level*6'd56;
+    wire [7:0] tail_blue=8'd128+{1'b0,key_level[7:1]};
     wire [7:0] pressure_width=pressure_mv>=3072 ? 8'd192 : {1'b0,pressure_mv[11:4]};
     // Status text is formatted only at the coherent vertical-blank snapshot.
     reg [55:0] pressure_text="0.000 V";
@@ -147,7 +156,7 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
             label(x,y,74+64*(sharp_label<2 ? sharp_label : sharp_label+1),102,3,sharp_note(sharp_label),24'hF1F1FA);
         label(x,y,28,204,12,"DIGITAL WAVE",24'hC8BCFF);
         label(x,y,508,204,2,"4X",24'h9CAEC9);
-        label(x,y,28,224,18,"I2S OUT / 10.49 MS",24'h9CAEC9);
+        label(x,y,28,224,25,"I2S OUT / 10.49 MS / TRIG",24'h9CAEC9);
         label(x,y,28,408,8,"SPECTRUM",24'hC8BCFF);
         label(x,y,396,408,11,"4096 / HANN",24'h9CAEC9);
         label(x,y,28,532,1,"0",24'h9CAEC9);
@@ -244,31 +253,47 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
     wire [23:0] bar_shade={1'b0,bar_rgb[23:17],1'b0,bar_rgb[15:9],1'b0,bar_rgb[7:1]};
     wire [7:0] fft_height=plot_data>>1;
     reg [23:0] color;
-    reg signed [11:0] wave_y;
+    reg signed [11:0] wave_y,previous_y,trace_low,trace_high;
+    reg [7:0] sharp_level;
+    reg [13:0] sharp_meter;
     integer sharp,dot;
     always @* begin
         color=wallpaper_rgb;
-        wave_y=12'sd308-($signed(plot_data)>>>1);
+        wave_y=12'sd308-($signed(scope_plot)>>>1);
+        previous_y=key_offset==0 ? wave_y : 12'sd308-($signed(previous_scope)>>>1);
+        trace_low=wave_y<previous_y ? wave_y : previous_y;
+        trace_high=wave_y>previous_y ? wave_y : previous_y;
+        sharp_level=0;sharp_meter=0;
         if(panel) color=glass_rgb;
         if(panel && !panel_inner) color=24'h495166;
         for(dot=0;dot<8;dot=dot+1)
             if(px>=654+dot*14 && px<662+dot*14 && py>=28 && py<34)
                 color=wallpaper_index==dot ? 24'hD8CCFF : 24'h636C85;
         if(px>=28 && px<540 && py>=88 && py<168 && key_offset[5:0]<62) begin
-            color=gates[key_index] ? 24'h60D9CA : 24'hCDD5E5;
-            if(active[key_index] && !gates[key_index] && py>=164) color=24'h83ADA9;
+            color=gates[key_index] ? 24'h60D9CA :
+                active[key_index] ? {8'h91,8'hB9,tail_blue} : 24'hCDD5E5;
+            // The meter is the voice ADSR before pressure/master gain and echo.
+            if(py>=160 && py<164 && key_offset[5:0]>=3 && key_offset[5:0]<59)
+                color=key_offset[5:0]-3<key_meter[13:8] ? 24'h249C8B : 24'hAAB6CA;
             if(guide_on && guide_mask[key_index] && (py<91 || py>=165)) color=24'hF2BE55;
         end
-        for(sharp=0;sharp<5;sharp=sharp+1)
+        for(sharp=0;sharp<5;sharp=sharp+1) begin
+            sharp_level=display_levels>>((8+sharp)*8);
+            sharp_meter=sharp_level*6'd36;
             if(py>=88 && py<134 && px>=(sharp<2 ? 70+64*sharp : 134+64*sharp) &&
                 px<(sharp<2 ? 114+64*sharp : 178+64*sharp)) begin
-                color=gates[8+sharp] ? 24'h6878B8 : 24'h202A41;
+                color=gates[8+sharp] ? 24'h6878B8 :
+                    active[8+sharp] ? {8'h32,8'h4C,(8'd80+{1'b0,sharp_level[7:1]})} : 24'h202A41;
+                if(py>=124 && py<128 && px>=(sharp<2 ? 74+64*sharp : 138+64*sharp) &&
+                    px<(sharp<2 ? 110+64*sharp : 174+64*sharp))
+                    color=px-(sharp<2 ? 74+64*sharp : 138+64*sharp)<sharp_meter[13:8] ? 24'h48E0C0 : 24'h29384F;
                 if(guide_on && guide_mask[8+sharp] && (py<91 || py>=131)) color=24'hF2BE55;
             end
+        end
         if(px>=28 && px<540 && py>=244 && py<=372) begin
             if((py==276 || py==308 || py==340 || key_offset[6:0]==0) && px[1:0]==0) color=24'h3B485F;
-            if(plot_ready && $signed({1'b0,py})>=wave_y-2 && $signed({1'b0,py})<=wave_y+2) color=24'h287577;
-            if(plot_ready && $signed({1'b0,py})>=wave_y-1 && $signed({1'b0,py})<=wave_y+1) color=24'h48E0C0;
+            if(scope_plot_ready && $signed({1'b0,py})>=trace_low-2 && $signed({1'b0,py})<=trace_high+2) color=24'h287577;
+            if(scope_plot_ready && $signed({1'b0,py})>=trace_low-1 && $signed({1'b0,py})<=trace_high+1) color=24'h48E0C0;
         end
         if(px>=28 && px<540 && py>=436 && py<524) begin
             if((key_offset[6:0]==0 || py==523) && px[1:0]==0) color=24'h3B485F;
@@ -289,19 +314,23 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
         px0<=x;py0<=y;de0<=de;hs0<=hs;vs0<=vs;ready0<=visual_ready;
         px<=px0;py<=py0;de_delay<=de0;hs_delay<=hs0;vs_delay<=vs0;
         plot_data<=visual_data;plot_ready<=ready0;
+        scope_plot<=scope_data;scope_ready0<=scope_ready;scope_plot_ready<=scope_ready0;
         label_visible<=text_visible;label_dx<=text_dx;label_dy<=text_dy;
         label_length<=text_length;label_line<=text_line;label_ink<=text_ink;
         text_pixel<=next_text_pixel;character<=next_character;glyph_ink<=label_ink;
         if(rst) begin
-            display_status<=0; rgb<=0; out_de<=0; out_hs<=0; out_vs<=0;
+            display_status<=0;display_levels<=0;rgb<=0;out_de<=0;out_hs<=0;out_vs<=0;
+            scope_plot<=0;previous_scope<=0;scope_ready0<=0;scope_plot_ready<=0;
             de0<=0;de_delay<=0;hs0<=0;hs_delay<=0;vs0<=0;vs_delay<=0;
             ready0<=0;plot_ready<=0;
             label_visible<=0;text_pixel<=0;character<=32;glyph_ink<=0;
             pressure_text<="0.000 V";volume_text<="000";bpm_text<="000";
             rx_text<="000";error_text<="000";voice_text<="00";step_text<="01";length_text<="00";
         end else begin
+            if(de_delay && px>=28 && px<540 && py>=244 && py<=372) previous_scope<=scope_plot;
             if(vertical_blank) begin
                 display_status<=status;
+                display_levels<=voice_levels;
                 pressure_text<={digit(status[64:53]/1000),".",decimal3(status[64:53]%1000)," V"};
                 volume_text<=decimal3(({status[22:18],status[203:196]}*100)/4096);
                 voice_text<=decimal2(count_voices({status[49:45],status[15:8]}));

@@ -9,10 +9,16 @@ module tb_video;
     wire [23:0] rgb;wire od,oh,ov;
     // Deterministic input fixtures for visual layout; not claimed as board audio.
     reg [203:0] status=0;
+    wire [12:0] fixture_active={status[49:45],status[15:8]};
+    wire [103:0] fixture_levels;
+    for(genvar v=0;v<13;v=v+1) begin: feedback_fixture
+        assign fixture_levels[v*8+:8]=fixture_active[v] ? 8'd192 : 8'd0;
+    end
     reg expected_adc_online=0,expected_debug=0;
     integer expected_mv=0;
     instrument_screen screen(.clk(clk),.rst(rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
         .vertical_blank(blank),.status(status),.visual_ready(1'b1),.visual_data(data),
+        .voice_levels(fixture_levels),.scope_ready(1'b1),.scope_data(data),.scope_address(),
         .visual_address(addr),.rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     reg [2:0] sync1=0,sync2=0,sync3=0;
     reg [10:0] rendered_x1=0,rendered_x2=0,rendered_x3=0;
@@ -59,6 +65,10 @@ module tb_video;
             $fatal(1,"White C4 note label is missing");
         if(screen.py==204 && screen.px==28 && screen.character!=="D")
             $fatal(1,"Waveform must be identified as DIGITAL WAVE");
+        if(screen.py==224 && screen.px==28 && screen.character!=="I")
+            $fatal(1,"I2S output label lost its leading character");
+        if(screen.py==224 && screen.px==316 && screen.character!=="G")
+            $fatal(1,"Trigger label truncated");
         if(expected_adc_online && screen.py==160) begin
             if(screen.px==576 && screen.character!==(48+expected_mv/1000)) $fatal(1,"ADC whole volts digit");
             if(screen.px==588 && screen.character!==".") $fatal(1,"ADC decimal point");

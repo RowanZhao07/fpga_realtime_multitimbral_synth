@@ -12,6 +12,8 @@ HDMI 以 `assets/wallpapers/1.jpg`～`8.jpg` 为全屏壁纸，约每 10 秒轮�
 
 `DIGITAL WAVE / 4X` 显示送往 I²S 的数字 PCM，固定 4 倍纵向放大（约 ±8192 PCM，超出范围截顶），不是麦克风测得的声压。主音量和压力会影响波形；音箱自身的滑片位于 DAC 之后，不反馈到屏幕。`MASTER GAIN` 表示压力调制前的数字主增益，百分比向下取整。
 
+波形独立采集 512 点（10.49ms），上升过零触发、静音时超时刷新；与 FFT 分别双缓冲，在场消隐时换帧。琴键松开后的蓝色余音和底部小条来自各声部真实 ADSR，包含五个黑键；小条表示压力、主增益及回声处理前的包络，不代表音箱响度。独立波形与包络反馈方案由 chenxi639 提出，已适配当前 13 声部及壁纸界面；未接入其预留的听音算法接口。
+
 ## 目录与构建
 
 ```text
@@ -114,7 +116,7 @@ $env:GOWIN_HOME = Read-Host 'Gowin IDE 目录'
 powershell -NoProfile -ExecutionPolicy Bypass -File .\instrument\sim\run.ps1
 ```
 
-回归包含 26 项 RTL 仿真、独立音频/和弦/FFT 数值比较、八张壁纸的逐像素比较和 7 项串口工具测试。原始数据暂存 `instrument/sim/output/`；成功后图片保存到 `assets/simulation/`，WAV 保存到 `.local/simulation_audio/`。图片更新时，旧版本按内容哈希保存在 `history/` 子目录，不因清理而丢失。日志、原始数据、WAV 和缓存不纳入 Git。
+回归包含 31 项 RTL 仿真、独立音频/和弦/FFT 数值比较、八张壁纸的逐像素比较和 7 项串口工具测试；新增覆盖独立波形、双时钟并发读写、13 路包络与整机显示连接。原始数据暂存 `instrument/sim/output/`；成功后图片保存到 `assets/simulation/`，WAV 保存到 `.local/simulation_audio/`。图片更新时，旧版本按内容哈希保存在 `history/` 子目录，不因清理而丢失。日志、原始数据、WAV 和缓存不纳入 Git。
 
 `chords_after_four_tones.wav` 按正弦/电钢琴感/合成弦乐/金属顺序播放 C/F/G/Am 和弦，统一放大 4 倍用于试听；不是实板录音，也未与音箱校准响度。
 

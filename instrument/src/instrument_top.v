@@ -38,13 +38,15 @@ module instrument_top (
     wire [203:0] pixel_status;
     wire signed [15:0] monitor_sample;
     wire monitor_ce;
+    wire [103:0] voice_levels,pixel_levels;
     wire [7:0] key_lights;
     instrument_core core(.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
         .pressure_online(pressure_online),.pressure_mv(pressure_mv),
         .control_rx(control_rx),.control_tx(control_tx),.control_status(control_status),.uart_diagnostics(uart_diagnostics),
         .diagnostics_visible(diagnostics_visible),
         .dac_bck(dac_bck),.dac_lrck(dac_lrck),.dac_din(dac_din),.led(led),
-        .key_lights(key_lights),.volume_low(volume_low),.status(core_status),.monitor_sample(monitor_sample),.monitor_ce(monitor_ce));
+        .key_lights(key_lights),.volume_low(volume_low),.status(core_status),.monitor_sample(monitor_sample),.monitor_ce(monitor_ce),
+        .voice_levels(voice_levels));
     hc595_driver key_led_driver(.clk(clk),.rst(rst),.lights(key_lights),
         .serial_data(led_ser),.shift_clock(led_srclk),.latch_clock(led_rclk),.oe_n(led_oe_n));
     wire pixel_clk,serial_clk,video_locked;
@@ -63,24 +65,37 @@ module instrument_top (
         else analyser_release<={analyser_release[1:0],1'b1};
     end
     wire analyser_rst=rst || !analyser_release[2];
-    status_mailbox #(.WIDTH(204)) mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data(status),
-        .dst_clk(pixel_clk),.dst_rst(video_rst),.dst_data(pixel_status));
+    status_mailbox #(.WIDTH(308)) mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data({voice_levels,status}),
+        .dst_clk(pixel_clk),.dst_rst(video_rst),.dst_data({pixel_levels,pixel_status}));
     wire [10:0] x; wire [9:0] y;
     wire de,hs,vs,blank;
     video_timing timing(.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),.vertical_blank(blank));
     wire visual_write,frame_done,frame_ack,visual_ready;
     wire [9:0] visual_write_address,visual_read_address;
     wire [7:0] visual_write_data,visual_read_data;
-    audio_spectrum analyser(.clk(clk),.rst(analyser_rst),.sample_ce(monitor_ce),.sample(monitor_sample),
+    audio_spectrum #(.ENABLE_SCOPE(1'b0)) analyser(.clk(clk),.rst(analyser_rst),.sample_ce(monitor_ce),.sample(monitor_sample),
         .write_enable(visual_write),.write_address(visual_write_address),.write_value(visual_write_data),
         .frame_done(frame_done),.frame_ack(frame_ack),.bin_valid(),.bin_index(),.bin_magnitude());
-    visual_buffer visual_memory(.audio_clk(clk),.audio_rst(analyser_rst),
-        .write_enable(visual_write),.write_address(visual_write_address),.write_value(visual_write_data),
+    visual_buffer #(.ADDRESS_BITS(9)) visual_memory(.audio_clk(clk),.audio_rst(analyser_rst),
+        .write_enable(visual_write),.write_address(visual_write_address[8:0]),.write_value(visual_write_data),
         .frame_done(frame_done),.frame_ack(frame_ack),.pixel_clk(pixel_clk),.pixel_rst(video_rst),
-        .vertical_blank(blank),.read_address(visual_read_address),.read_value(visual_read_data),.ready(visual_ready));
+        .vertical_blank(blank),.read_address(visual_read_address[8:0]),.read_value(visual_read_data),.ready(visual_ready));
+    // Scope and FFT publish independently, each swapping only at vertical blank.
+    wire scope_write,scope_done,scope_ack,scope_ready;
+    wire [8:0] scope_write_address,scope_read_address;
+    wire [7:0] scope_write_data,scope_read_data;
+    waveform_capture scope(.clk(clk),.rst(analyser_rst),.sample_ce(monitor_ce),.sample(monitor_sample),
+        .write_enable(scope_write),.write_address(scope_write_address),.write_value(scope_write_data),
+        .frame_done(scope_done),.frame_ack(scope_ack));
+    visual_buffer #(.ADDRESS_BITS(9)) scope_memory(.audio_clk(clk),.audio_rst(analyser_rst),
+        .write_enable(scope_write),.write_address(scope_write_address),.write_value(scope_write_data),
+        .frame_done(scope_done),.frame_ack(scope_ack),.pixel_clk(pixel_clk),.pixel_rst(video_rst),
+        .vertical_blank(blank),.read_address(scope_read_address),.read_value(scope_read_data),.ready(scope_ready));
     wire [23:0] rgb; wire pixel_de,pixel_hs,pixel_vs;
     instrument_screen screen(.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
-        .vertical_blank(blank),.status(pixel_status),.visual_ready(visual_ready),.visual_data(visual_read_data),
+        .vertical_blank(blank),.status(pixel_status),.voice_levels(pixel_levels),
+        .scope_ready(scope_ready),.scope_data(scope_read_data),.scope_address(scope_read_address),
+        .visual_ready(visual_ready),.visual_data(visual_read_data),
         .visual_address(visual_read_address),.rgb(rgb),.out_de(pixel_de),.out_hs(pixel_hs),.out_vs(pixel_vs));
     video_output transmitter(.pixel_clk(pixel_clk),.serial_clk(serial_clk),.rst(video_rst),
         .rgb(rgb),.de(pixel_de),.hs(pixel_hs),.vs(pixel_vs),.tmds_p(tmds_p),.tmds_n(tmds_n),

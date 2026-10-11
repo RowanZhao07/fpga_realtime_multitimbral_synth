@@ -23,6 +23,7 @@
 <File path="src/audio_output.v" type="file.verilog" enable="1"/>
 <File path="src/i2s_transmitter.v" type="file.verilog" enable="1"/>
 <File path="src/audio_spectrum.v" type="file.verilog" enable="1"/>
+<File path="src/waveform_capture.v" type="file.verilog" enable="1"/>
 <File path="src/fft_cos_lut.v" type="file.verilog" enable="1"/>
 <File path="src/fft_sin_lut.v" type="file.verilog" enable="1"/>
 <File path="src/fft_window_lut.v" type="file.verilog" enable="1"/>

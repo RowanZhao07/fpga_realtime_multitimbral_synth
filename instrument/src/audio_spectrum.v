@@ -2,7 +2,7 @@
 // Snapshot analyser, independent of the real-time audio path.
 // 4096 real samples, Hann window, radix-2 DIT, 1/N scaling at every stage.
 // Full-rate input: 48828.125 Hz; bin width 11.92093 Hz. No decimation/aliasing.
-module audio_spectrum(input wire clk,rst,sample_ce,
+module audio_spectrum #(parameter ENABLE_SCOPE=1'b1)(input wire clk,rst,sample_ce,
     input wire signed [15:0] sample,
     output reg write_enable=0, output reg [9:0] write_address=0,
     output reg [7:0] write_value=0,
@@ -76,7 +76,7 @@ module audio_spectrum(input wire clk,rst,sample_ce,
             windowed<=sample*window_value; input_sample<=sample; state<=CAP_WRITE;
         end
         CAP_WRITE: begin
-            if(capture_index<512) begin
+            if(ENABLE_SCOPE && capture_index<512) begin
                 write_enable<=1; write_address<={1'b0,capture_index[8:0]};
                 // Fixed 4x display zoom: +/-8192 PCM spans the scope; the
                 // renderer maps two stored units to one vertical pixel.

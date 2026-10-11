@@ -11,11 +11,17 @@ module tb_wallpaper;
     wire od,oh,ov;wire [9:0] addr;
     reg [7:0] data=0;
     reg [203:0] status=0;
+    wire [12:0] fixture_active={status[49:45],status[15:8]};
+    wire [103:0] fixture_levels;
+    for(genvar v=0;v<13;v=v+1) begin: feedback_fixture
+        assign fixture_levels[v*8+:8]=fixture_active[v] ? 8'd192 : 8'd0;
+    end
     wallpaper_background #(.HOLD_FRAMES(2)) background(.clk(clk),.rst(rst),
         .vertical_blank(blank),.x(x),.y(y),.rgb(raw_rgb),.image_index(image_index));
     instrument_screen #(.WALLPAPER_HOLD_FRAMES(2)) screen(.clk(clk),.rst(rst),
         .x(x),.y(y),.de(de),.hs(1'b0),.vs(1'b0),.vertical_blank(blank),
         .status(status),.visual_ready(1'b1),.visual_data(data),.visual_address(addr),
+        .voice_levels(fixture_levels),.scope_ready(1'b1),.scope_data(data),.scope_address(),
         .rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     reg [1:0] valid=0;
     always @(posedge clk) begin

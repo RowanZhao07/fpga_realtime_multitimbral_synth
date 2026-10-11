@@ -20,9 +20,9 @@ try {
     if($LASTEXITCODE) { throw 'Gowin simulation library compilation failed' }
     & $xvlog --sv @sources tb_controls.sv tb_echo.sv tb_synthesis.sv tb_voice_quality.sv tb_touch_link.sv tb_pressure_link.sv tb_pressure_audio.sv tb_hc595.sv tb_board_clock.sv tb_spectrum.sv tb_video.sv tb_wallpaper.sv tb_visual_link.sv tb_serial_video.sv tb_latency.sv tb_uart_control.sv tb_uart_diagnostics.sv tb_uart_tx_notice.sv tb_score_upload.sv tb_remote_instrument.sv
     if($LASTEXITCODE) { throw 'RTL compilation failed' }
-    & $xvlog --sv tb_lamp_diagnostics.sv tb_timbre_profiles.sv tb_i2s_audio.sv
+    & $xvlog --sv tb_lamp_diagnostics.sv tb_timbre_profiles.sv tb_i2s_audio.sv tb_waveform.sv tb_scope_link.sv tb_screen_feedback.sv tb_voice_feedback.sv tb_top_integration.sv
     if($LASTEXITCODE) { throw 'Additional RTL test compilation failed' }
-    foreach($test in @('tb_controls','tb_echo','tb_synthesis','tb_voice_quality','tb_timbre_profiles','tb_chord_audio','tb_i2s_audio','tb_touch_link','tb_pressure_link','tb_pressure_audio','tb_hc595','tb_key_lights','tb_lamp_diagnostics','tb_board_clock','tb_spectrum','tb_video','tb_wallpaper','tb_visual_link','tb_serial_video','tb_latency','tb_uart_control','tb_uart_diagnostics','tb_uart_tx_notice','tb_score_upload','tb_remote_instrument','tb_tempo')) {
+    foreach($test in @('tb_waveform','tb_scope_link','tb_screen_feedback','tb_voice_feedback','tb_top_integration','tb_controls','tb_echo','tb_synthesis','tb_voice_quality','tb_timbre_profiles','tb_chord_audio','tb_i2s_audio','tb_touch_link','tb_pressure_link','tb_pressure_audio','tb_hc595','tb_key_lights','tb_lamp_diagnostics','tb_board_clock','tb_spectrum','tb_video','tb_wallpaper','tb_visual_link','tb_serial_video','tb_latency','tb_uart_control','tb_uart_diagnostics','tb_uart_tx_notice','tb_score_upload','tb_remote_instrument','tb_tempo')) {
         & $xelab $test -s $test -debug typical
         if($LASTEXITCODE) { throw "Elaboration failed: $test" }
         & $xsim $test -runall
