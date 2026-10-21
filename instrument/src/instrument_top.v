@@ -1,5 +1,11 @@
 `timescale 1ns/1ps
-module instrument_top (
+module instrument_top #(
+`ifdef INSTRUMENT_TOUCH_DEBUG
+    parameter TOUCH_DEBUG=1'b1
+`else
+    parameter TOUCH_DEBUG=1'b0
+`endif
+)(
     input wire ref_clk, // On-board 50 MHz crystal, V22.
     inout wire mpr_scl, mpr_sda, mpr_b_scl, mpr_b_sda,
     inout wire pressure_scl, pressure_sda,
@@ -40,7 +46,8 @@ module instrument_top (
     wire monitor_ce;
     wire [103:0] voice_levels,pixel_levels;
     wire [7:0] key_lights;
-    instrument_core core(.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
+    instrument_core #(.DEFAULT_SUSTAIN(TOUCH_DEBUG),
+        .DEFAULT_TIMBRE(TOUCH_DEBUG ? 2'd1 : 2'd0)) core(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
         .pressure_online(pressure_online),.pressure_mv(pressure_mv),
         .control_rx(control_rx),.control_tx(control_tx),.control_status(control_status),.uart_diagnostics(uart_diagnostics),
         .diagnostics_visible(diagnostics_visible),
@@ -92,7 +99,7 @@ module instrument_top (
         .frame_done(scope_done),.frame_ack(scope_ack),.pixel_clk(pixel_clk),.pixel_rst(video_rst),
         .vertical_blank(blank),.read_address(scope_read_address),.read_value(scope_read_data),.ready(scope_ready));
     wire [23:0] rgb; wire pixel_de,pixel_hs,pixel_vs;
-    instrument_screen screen(.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
+    instrument_screen #(.TOUCH_DEBUG(TOUCH_DEBUG)) screen(.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
         .vertical_blank(blank),.status(pixel_status),.voice_levels(pixel_levels),
         .scope_ready(scope_ready),.scope_data(scope_read_data),.scope_address(scope_read_address),
         .visual_ready(visual_ready),.visual_data(visual_read_data),

@@ -3,11 +3,16 @@
 param([string]$Python='python')
 $ErrorActionPreference='Stop'
 $repoRoot=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
-$release=Join-Path $repoRoot 'dist/instrument.fs'
-if(!(Test-Path -LiteralPath $release -PathType Leaf)) {
-    throw 'Build dist/instrument.fs successfully before cleaning intermediates.'
+$releases=@('dist/instrument.fs','dist/instrument_touch_debug.fs' |
+    ForEach-Object { Join-Path $repoRoot $_ } |
+    Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+if($releases.Count -eq 0) {
+    throw 'Build a normal or touch-debug release in dist before cleaning intermediates.'
 }
-$releaseHash=(Get-FileHash -LiteralPath $release -Algorithm SHA256).Hash
+$releaseHashes=@{}
+foreach($release in $releases) {
+    $releaseHashes[$release]=(Get-FileHash -LiteralPath $release -Algorithm SHA256).Hash
+}
 
 function Get-SafeItem([string]$Path) {
     $item=Get-Item -LiteralPath $Path -Force
@@ -61,14 +66,16 @@ foreach($item in $candidates) {
         else { Remove-Item -LiteralPath $item.FullName -Force }
     }
 }
-if((Get-FileHash -LiteralPath $release -Algorithm SHA256).Hash -ne $releaseHash) {
-    throw 'Release checksum changed during cleanup.'
+foreach($release in $releases) {
+    if((Get-FileHash -LiteralPath $release -Algorithm SHA256).Hash -ne $releaseHashes[$release]) {
+        throw "Release checksum changed during cleanup: $release"
+    }
 }
 if(!$WhatIfPreference) {
     $bitstreams=@(Get-ChildItem -LiteralPath $repoRoot -Recurse -File -Filter '*.fs' |
         Where-Object { !$_.FullName.StartsWith((Join-Path $repoRoot '.git')+[IO.Path]::DirectorySeparatorChar) })
-    if($bitstreams.Count -ne 1 -or $bitstreams[0].FullName -ne $release) {
+    if($bitstreams.Count -ne $releases.Count -or @($bitstreams | Where-Object { $_.FullName -notin $releases }).Count -ne 0) {
         throw 'Unexpected additional bitstreams remain; inspect them manually.'
     }
-    Write-Output "Clean repository; one bitstream retained: $release"
+    Write-Output "Clean repository; releases retained: $($releases -join ', ')"
 }

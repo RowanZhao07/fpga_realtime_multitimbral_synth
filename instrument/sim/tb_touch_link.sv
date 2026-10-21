@@ -31,7 +31,7 @@ module tb_touch_link;
     end
     integer before_attacks;
     reg [1:0] before_preset;
-    instrument_core core(.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
+    instrument_core core(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
         .control_rx(1'b1),.control_tx(),.control_status(),.pressure_online(1'b0),.pressure_mv(12'd0),
         .dac_bck(bck),.dac_lrck(lrck),.dac_din(din),.led(led));
     defparam core.controls.HOLD_SAMPLES=20;

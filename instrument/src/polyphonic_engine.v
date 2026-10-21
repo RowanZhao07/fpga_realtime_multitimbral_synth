@@ -1,5 +1,6 @@
 `timescale 1ns/1ps
 module polyphonic_engine (
+    input wire sustain_down,
     input wire clk, rst, sample_ce,
     input wire [12:0] gates,
     input wire [1:0] timbre,
@@ -22,7 +23,7 @@ module polyphonic_engine (
         note_frequency #(.KEY(v)) tuning(.step(base_step));
         wire signed [41:0] deviation=$signed({1'b0,(base_step>>13)})*lfo;
         wire [31:0] step= vibrato ? base_step+deviation[31:0] : base_step;
-        synthesis_voice voice(.clk(clk),.rst(rst),.sample_ce(sample_ce),
+        synthesis_voice voice(.sustain_down(sustain_down),.clk(clk),.rst(rst),.sample_ce(sample_ce),
             .gate(gates[v]),.phase_step(step),.timbre(timbre),
             .sample(voices[v]),.active(active[v]),.envelope_level(voice_levels[v*8+:8]));
     end endgenerate

@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 // Streaming raster renderer: no external memory or processor.
-module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
+module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAPER_HOLD_FRAMES=600)(
     input wire clk,rst,input wire [10:0] x,input wire [9:0] y,
     input wire de,hs,vs,vertical_blank,input wire [203:0] status,
     input wire [103:0] voice_levels,
@@ -149,7 +149,7 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
             3:label(x,y,416,24,10,"TONE METAL",24'hC8BCFF);
         endcase
         label(x,y,416,44,9,"48.8K I2S",24'h9CAEC9);
-        label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : "LIVE INPUT",24'hC8BCFF);
+        label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : "LIVE INPUT",24'hC8BCFF);
         for(key_label=0;key_label<8;key_label=key_label+1)
             label(x,y,48+64*key_label,146,2,white_note(key_label),24'h142137);
         for(sharp_label=0;sharp_label<5;sharp_label=sharp_label+1)
@@ -187,10 +187,12 @@ module instrument_screen #(parameter integer WALLPAPER_HOLD_FRAMES=600)(
             label(x,y,576,432,custom_score ? 9 : 8,custom_score ? "SONG USER" : "SONG ROM",24'hF1F1FA);
             label(x,y,576,452,10,{"STEP ",step_text,"/",length_text},24'hF1F1FA);
             label(x,y,576,476,7,{"BPM ",bpm_text},24'hF1F1FA);
-            label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : "LIVE INPUT",24'h9CAEC9);
+            label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : "LIVE INPUT",24'h9CAEC9);
             label(x,y,576,524,13,{"RX ",rx_text," ER ",error_text},24'h9CAEC9);
         end
-        label(x,y,28,568,49,"C0 TONE/ECHO  C1/2 GAIN  HOLD C3 VIB  C1+C2 GUIDE",24'hCAD4E6);
+        if(TOUCH_DEBUG)
+            label(x,y,28,568,36,"DEFAULT SUSTAIN  UART H0 OFF / H1 ON",24'hCAD4E6);
+        else label(x,y,28,568,49,"C0 TONE/ECHO  C1/2 GAIN  HOLD C3 VIB  C1+C2 GUIDE",24'hCAD4E6);
     end
     always @* begin
         next_character=8'd32;

@@ -1,9 +1,14 @@
 `timescale 1ns/1ps
 module instrument_core #(
     parameter ENABLE_ECHO=1'b0,
+    parameter DEFAULT_SUSTAIN=1'b0,
+    parameter [1:0] DEFAULT_TIMBRE=2'd0,
     parameter integer UART_CLOCKS_PER_BIT=5208,
     parameter integer LAMP_TEST_CLOCKS=250000000
 )(
+    // Future pedal adapter supplies a synchronized, debounced level in clk domain.
+    input wire sustain_request,
+    output wire sustain_active,
     input wire clk, rst, online,
     input wire [17:0] touched,
     input wire [1:0] chip_online,
@@ -71,11 +76,18 @@ module instrument_core #(
     reg previous_mode=0;
     always @(posedge clk) previous_mode<=spectrum_mode;
     wire audio_reset=rst || (previous_mode!=spectrum_mode);
-    performance_control controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),
+    reg remote_sustain=DEFAULT_SUSTAIN;
+    always @(posedge clk) begin
+        if(audio_reset || !online || spectrum_mode) remote_sustain<=DEFAULT_SUSTAIN;
+        else if(command_valid && command=="H") remote_sustain<=command_value[0];
+    end
+    assign sustain_active=!audio_reset && online && !spectrum_mode &&
+        (sustain_request || remote_sustain);
+    performance_control #(.DEFAULT_TIMBRE(DEFAULT_TIMBRE)) controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),
         .command_valid(command_valid),.command(command),.value(command_value),
         .online(online),.touched(touched),.gates(gates),.timbre(timbre),
         .volume(volume),.vibrato(vibrato),.spectrum_mode(spectrum_mode),.echo_enabled(echo_enabled),.guide_enabled(guide_enabled));
-    polyphonic_engine engine(.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
+    polyphonic_engine engine(.sustain_down(sustain_active),.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
         .timbre(spectrum_mode ? 2'b0 : timbre),.vibrato(vibrato),
         .mixed(mixed),.valid(valid),.active(active),.voice_levels(voice_levels));
     audio_output output_stage(.clk(clk),.rst(audio_reset),.valid(valid),.mixed(mixed),

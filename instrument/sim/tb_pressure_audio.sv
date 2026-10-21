@@ -8,11 +8,11 @@ module tb_pressure_audio;
     reg [17:0] touched=0;
     wire bck,lrck,din,ref_bck,ref_lrck,ref_din;
     wire [52:0] status;
-    instrument_core dut(.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
+    instrument_core dut(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
         .control_rx(1'b1),.control_tx(),.control_status(),.pressure_online(pressure_online),.pressure_mv(pressure_mv),
         .dac_bck(bck),.dac_lrck(lrck),.dac_din(din),.led(),.status(status),
         .monitor_sample(),.monitor_ce());
-    instrument_core reference(.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
+    instrument_core reference(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
         .control_rx(1'b1),.control_tx(),.control_status(),.pressure_online(1'b0),.pressure_mv(12'd0),
         .dac_bck(ref_bck),.dac_lrck(ref_lrck),.dac_din(ref_din),.led(),.status(),
         .monitor_sample(),.monitor_ce());

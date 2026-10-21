@@ -12,6 +12,12 @@ spec.loader.exec_module(tool)
 
 
 class SerialControlTests(unittest.TestCase):
+    def test_sustain_commands(self):
+        for command in ("H0", "H1"):
+            self.assertTrue(tool.valid_command(command))
+        for command in ("H", "H2", "H01", "H-1"):
+            self.assertFalse(tool.valid_command(command))
+
     def test_lamp_masks_and_cancel_are_bounded_decimal_commands(self):
         for command in ("L0", "L8", "L16", "L24", "L25", "L255", "L256"):
             self.assertTrue(tool.valid_command(command), command)

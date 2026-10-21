@@ -2,7 +2,9 @@
 
 Tang Mega 60K NEO（GW5AT-60B）上的纯 Verilog 电子琴，无处理器、MCU 或预录音频。
 
-13 声部覆盖 C4～C5 半音阶，支持四音色、ADSR、音量、颤音、延迟效果、公共压力控制、八键灯、蓝牙参数控制与最多 64 步和弦跟弹。HDMI 输出 800×600，常驻琴键、实时 PCM 波形、4096 点 Hann 窗 FFT 和演奏状态。
+13 声部覆盖 C4～C5 半音阶，支持四音色、ADSR、延音踏板、音量、颤音、延迟效果、公共压力控制、八键灯、蓝牙参数控制与最多 64 步和弦跟弹。HDMI 输出 800×600，常驻琴键、实时 PCM 波形、4096 点 Hann 窗 FFT 和演奏状态。
+
+本轮延音改进由 **chenxi639** 主导、Codex 协助实现与验证，修改理由及验证范围见 [延音版本提交说明](docs/sustain_release.md)。物理踏板输入适配器尚未接入；可先用串口或默认延音触摸工程试听。
 
 HDMI 以 `assets/wallpapers/1.jpg`～`8.jpg` 为全屏壁纸，约每 10 秒轮换。图片居中裁剪为 4:3，以 192×144、每图 64 色存入片上 ROM；不需要 SD 卡或外接存储。更换图片后运行 `python instrument/tools/generate_wallpapers.py`，再构建、下载。轮播间隔由 `instrument_screen.v` 的 `WALLPAPER_HOLD_FRAMES` 设置（默认 600 帧）。
 
@@ -27,12 +29,12 @@ instrument/
   config/               Gowin 构建配置
   instrument.gprj       Gowin 工程
   build.ps1 / build.tcl 命令行构建入口
-dist/instrument.fs      唯一下载位流（本地生成，不提交 Git）
+dist/                   正常版或触摸调试版位流（本地生成，不提交 Git）
 hardware/               接线图（仅本地保留，不提交 Git）
 .local/                 试听 WAV 等本地资料（不提交 Git）
 ```
 
-使用 Gowin V1.9.12.03，在仓库根目录执行，路径按自己的安装位置填写：
+已使用 Gowin V1.9.12.04 验证，在仓库根目录执行，路径按自己的安装位置填写：
 
 ```powershell
 $env:GOWIN_HOME = Read-Host 'Gowin IDE 目录（内含 bin）'
@@ -77,6 +79,20 @@ C0 短按切换音色、长按切换延迟；C1/C2 调音量，同时长按切�
 
 单片压力传感器控制公共音量：0V 为主音量的 25%，3.072V 及以上为 100%；ADC 离线时恢复主音量。默认主音量 50%，所以压力为 0V 时，幅度是同一音符在主音量与压力增益均为最大时的 12.5%；声音偏小时先用 V4096 配合重压核查。只按压力片不发声，这不是逐键力度检测。
 
+### 默认延音触摸调试工程（高云 IDE）
+
+有原触摸输入、暂时没有踏板时，直接在高云 IDE 打开 `instrument/instrument_touch_debug.gprj`，自行执行综合、布局布线和烧录。详细步骤见 [高云 IDE 打开说明](instrument/OPEN_IN_GOWIN.md)。
+
+默认 T1 电钢琴、延音开启、音量 50%、回声关闭，使用真实触摸输入；HDMI 显示 `SUST DEBUG`。`H0/H1` 是可选的串口释放/踩下入口，默认延音不依赖串口命令。正常版入口 `instrument/instrument.gprj` 仍默认关闭延音。
+
+调试工程使用相对路径。从 GitHub 首次下载时，先建立 `instrument/impl`，将 `instrument/config/touch_debug_process_config.json` 复制为 `instrument/impl/instrument_touch_debug_process_config.json`，再打开工程。IDE 编译后生成 `instrument/impl/pnr/instrument_touch_debug.fs`，在 Programmer 中选择该文件。完整行为说明见 [触摸调试说明](docs/touch_debug.md)。
+
+### 延音踏板试听
+
+发送 `T1`、`E0`、`H1` 后触键并松开，可听到缓慢衰减的电钢琴尾音；发送 `H0` 后，已松开的音进入原释音段，仍按住的音继续发声。电钢琴踩踏时的衰减时间约为原来的四倍。重复按同一个键可以重新起音；当前每个音高只有一个声部，同音尾音复用，不额外叠加。正弦和弦乐可保持，金属音沿用原自然衰减。踏板不会自行产生新音，也不会恢复已经进入释音的尾音。
+
+后续硬件输入接 `instrument_core.sustain_request`（与 `clk` 同域且已同步、去抖）；现有顶层将它置零，不新增引脚。硬件请求和串口请求取或，`sustain_active` 给出实际生效状态。复位、触摸离线或进入测试模式时禁用延音并清除串口请求。这里的离线指触摸系统，不是蓝牙断连；停止试听请发送 `H0`。详细方案、边界与验证见 [延音踏板报告](docs/sustain_pedal.md)。
+
 ## 蓝牙串口与曲谱
 
 手机 Serial Bluetooth Terminal 使用已验证的 BT05 连接，文本/ASCII，每条末尾 LF 或 CRLF。FPGA UART 为 **9600 / 8N1 / 无流控**。每条等 `K` 成功回包再发下一条，`E` 表示拒绝。
@@ -87,6 +103,7 @@ C0 短按切换音色、长按切换延迟；C1/C2 调音量，同时长按切�
 | `T0`～`T3` | 正弦/电钢琴感/合成弦乐/金属音色 |
 | `V0`～`V4096` | 主音量（压力继续参与调节） |
 | `E0` / `E1` | 关闭/开启延迟 |
+| `H0` / `H1` | 释放/踩下延音踏板（默认释放） |
 | `G0` / `G1` | 关闭/开启跟弹，重新开启从头开始 |
 | `B40`～`B240` | 提示节拍 BPM |
 | `R` | 恢复内置 14 步《小星星》 |
@@ -110,13 +127,18 @@ python .\instrument\tools\serial_control.py --port COM7 --song scale --bpm 100
 ## 回归与上板检查
 
 ```powershell
-python -m pip install -r .\instrument\tools\requirements.txt
+python -m venv .local/sim-venv
+.\.local\sim-venv\Scripts\python.exe -m pip install --only-binary=Pillow -r .\instrument\tools\requirements.txt
 $env:VIVADO_BIN = Read-Host 'Vivado bin 目录'
 $env:GOWIN_HOME = Read-Host 'Gowin IDE 目录'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\instrument\sim\run.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\instrument\sim\run.ps1 -Python .\.local\sim-venv\Scripts\python.exe
 ```
 
-回归包含 31 项 RTL 仿真、独立音频/和弦/FFT 数值比较、八张壁纸的逐像素比较和 7 项串口工具测试；新增覆盖独立波形、双时钟并发读写、13 路包络与整机显示连接。原始数据暂存 `instrument/sim/output/`；成功后图片保存到 `assets/simulation/`，WAV 保存到 `.local/simulation_audio/`。图片更新时，旧版本按内容哈希保存在 `history/` 子目录，不因清理而丢失。日志、原始数据、WAV 和缓存不纳入 Git。
+壁纸的严格像素比对依赖 JPEG 解码结果。已验证 Pillow 12.0.0 官方 PyPI wheel（libjpeg-turbo 3.1.2）与当前 ROM 一致；同版本 Conda/libjpeg 9 会产生细微像素差异，因此使用上述独立环境，不需要更改系统 Python。两项整帧画面测试启用仿真优化并关闭交互调试，保留全部断言。
+
+回归包含 35 项 RTL 仿真、独立音频/和弦/FFT 数值比较、八张壁纸的逐像素比较和 8 项串口工具测试；新增覆盖独立波形、双时钟并发读写、13 路包络与整机显示连接。原始数据暂存 `instrument/sim/output/`；成功后图片保存到 `assets/simulation/`，WAV 保存到 `.local/simulation_audio/`。图片更新时，旧版本按内容哈希保存在 `history/` 子目录，不因清理而丢失。日志、原始数据、WAV 和缓存不纳入 Git。
+
+`sustain_comparison.wav` 为同一组电钢琴和弦的 RTL 输出对照：先关闭踏板，间隔 0.5 秒，再开启踏板，统一原始 PCM 增益、关闭回声；另有 `sustain_off.wav` 和 `sustain_on.wav`。
 
 `chords_after_four_tones.wav` 按正弦/电钢琴感/合成弦乐/金属顺序播放 C/F/G/Am 和弦，统一放大 4 倍用于试听；不是实板录音，也未与音箱校准响度。
 

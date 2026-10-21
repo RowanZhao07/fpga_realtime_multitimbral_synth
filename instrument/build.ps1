@@ -1,8 +1,11 @@
-param([string]$GowinShell, [switch]$CheckTools)
+param([string]$GowinShell, [switch]$CheckTools, [switch]$TouchDebug)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'tools/toolchain.ps1')
 $GowinShell = Resolve-GowinShell $GowinShell
 if ($CheckTools) { Write-Output "Gowin shell: $GowinShell"; return }
+$buildBase = if($TouchDebug) { 'instrument_touch_debug' } else { 'instrument' }
+$previousBuildProfile = $env:INSTRUMENT_BUILD_PROFILE
+$env:INSTRUMENT_BUILD_PROFILE = if($TouchDebug) { 'touch_debug' } else { 'normal' }
 Push-Location $PSScriptRoot
 try {
     if(!(Test-Path $GowinShell)) { throw "Gowin shell not found: $GowinShell" }
@@ -10,9 +13,9 @@ try {
     & $GowinShell build.tcl 2>&1 | Tee-Object -FilePath build.log
     if($LASTEXITCODE -ne 0) { throw 'Gowin build failed' }
     if(Select-String build.log -Pattern '^ERROR\s' -Quiet) { throw 'Gowin reported errors' }
-    if(!(Test-Path 'impl/pnr/instrument.fs')) { throw 'Bitstream was not generated' }
-    if((Get-Item 'impl/pnr/instrument.fs').LastWriteTime -lt $buildStarted) { throw 'Bitstream is stale' }
-    $timingReport=Get-Content 'impl/pnr/instrument.tr' -Raw
+    if(!(Test-Path "impl/pnr/$buildBase.fs")) { throw 'Bitstream was not generated' }
+    if((Get-Item "impl/pnr/$buildBase.fs").LastWriteTime -lt $buildStarted) { throw 'Bitstream is stale' }
+    $timingReport=Get-Content "impl/pnr/$buildBase.tr" -Raw
     if($timingReport -notmatch '<Numbers of Setup Violated Endpoints>:0\s' -or
        $timingReport -notmatch '<Numbers of Hold Violated Endpoints>:0\s') {
         throw 'Timing verification failed; inspect setup/hold and recovery/removal paths before downloading'
@@ -28,8 +31,8 @@ try {
     # Publish only a fresh, timing-checked build. Moving avoids two runnable copies.
     $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
     $releaseDir = Join-Path $repoRoot 'dist'
-    $releaseFile = [IO.Path]::GetFullPath((Join-Path $releaseDir 'instrument.fs'))
-    $buildFile = (Resolve-Path -LiteralPath 'impl/pnr/instrument.fs').Path
+    $releaseFile = [IO.Path]::GetFullPath((Join-Path $releaseDir "$buildBase.fs"))
+    $buildFile = (Resolve-Path -LiteralPath "impl/pnr/$buildBase.fs").Path
     foreach($path in @($releaseFile, $buildFile)) {
         if(!$path.StartsWith($repoRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
             throw "Build artifact outside repository: $path"
@@ -38,4 +41,4 @@ try {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
     Move-Item -LiteralPath $buildFile -Destination $releaseFile -Force
     Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256
-} finally { Pop-Location }
+} finally { $env:INSTRUMENT_BUILD_PROFILE = $previousBuildProfile; Pop-Location }

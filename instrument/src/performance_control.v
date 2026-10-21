@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // White notes [7:0], controls [11:8], sharp notes [16:12], reserved X0 [17].
 module performance_control #(
+    parameter [1:0] DEFAULT_TIMBRE=2'd0,
     parameter integer HOLD_SAMPLES=48828,
     parameter integer REPEAT_SAMPLES=4883
 )(
@@ -8,7 +9,7 @@ module performance_control #(
     input wire [17:0] touched,
     input wire command_valid,input wire [7:0] command,input wire [15:0] value,
     output wire [12:0] gates,
-    output reg [1:0] timbre=0,
+    output reg [1:0] timbre=DEFAULT_TIMBRE,
     output reg [12:0] volume=2048,
     output wire vibrato,
     output reg spectrum_mode=0,
@@ -28,7 +29,7 @@ module performance_control #(
     assign vibrato=online && control[3] && !spectrum_mode && !all_control;
     always @(posedge clk) begin
         if(rst) begin
-            previous<=0; timbre<=0; volume<=2048; spectrum_mode<=0;
+            previous<=0; timbre<=DEFAULT_TIMBRE; volume<=2048; spectrum_mode<=0;
             hold_count<=0; repeat_count<=0; combo_used<=0;
             effect_count<=0; guide_count<=0; effect_used<=0; guide_used<=0;
             echo_enabled<=0; guide_enabled<=0;

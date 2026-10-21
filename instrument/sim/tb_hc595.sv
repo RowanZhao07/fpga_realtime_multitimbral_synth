@@ -101,7 +101,7 @@ module tb_key_lights;
     wire ser,srclk,rclk,oe_n;
     wire [52:0] status;
     wire sample_ce;
-    instrument_core core(.clk(clk),.rst(rst),.online(online),.touched(touched),
+    instrument_core core(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),
         .chip_online(2'b11),.control_rx(1'b1),.control_tx(),.control_status(),.pressure_online(1'b0),.pressure_mv(12'd0),
         .key_lights(lights),.led(),.status(status),.monitor_sample(),.monitor_ce(sample_ce),
         .dac_bck(),.dac_lrck(),.dac_din());

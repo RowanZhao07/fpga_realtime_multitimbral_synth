@@ -4,7 +4,7 @@ module tb_latency;
     reg clk=0;always #10 clk=~clk;
     reg rst=1;reg [17:0] touched=0;
     wire bck,lrck,din;wire [7:0] led;
-    instrument_core dut(.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
+    instrument_core dut(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
         .control_rx(1'b1),.control_tx(),.control_status(),.pressure_online(1'b0),.pressure_mv(12'd0),
         .dac_bck(bck),.dac_lrck(lrck),.dac_din(din),.led(led),
         .status(),.monitor_sample(),.monitor_ce());

@@ -6,7 +6,7 @@ module tb_synthesis;
     reg [1:0] timbre=0;
     wire signed [18:0] mixed;
     wire valid; wire [12:0] active;
-    polyphonic_engine dut(.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
+    polyphonic_engine dut(.sustain_down(1'b0),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .timbre(timbre),.vibrato(vibrato),.mixed(mixed),.valid(valid),.active(active));
     reg [12:0] volume=4096;
     reg echo=0;

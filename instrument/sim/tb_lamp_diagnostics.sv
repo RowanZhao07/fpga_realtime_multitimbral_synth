@@ -8,7 +8,7 @@ module tb_lamp_diagnostics;
     wire [52:0] status;
     wire signed [15:0] sample;
     wire ser,srclk,rclk,oe_n;
-    instrument_core #(.UART_CLOCKS_PER_BIT(32),.LAMP_TEST_CLOCKS(50000)) core(
+    instrument_core #(.UART_CLOCKS_PER_BIT(32),.LAMP_TEST_CLOCKS(50000)) core(.sustain_request(1'b0),
         .clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(2'b11),
         .pressure_online(1'b0),.pressure_mv(12'd0),.control_rx(rx),.control_tx(),
         .control_status(),.uart_diagnostics(),.diagnostics_visible(),.volume_low(),

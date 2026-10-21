@@ -7,7 +7,7 @@ module tb_i2s_audio;
     reg rst=1,rx=1;reg [17:0] touched=0;
     wire bck,lrck,din,ce;wire signed [15:0] pcm;
     wire [52:0] status;
-    instrument_core #(.UART_CLOCKS_PER_BIT(32)) dut(
+    instrument_core #(.UART_CLOCKS_PER_BIT(32)) dut(.sustain_request(1'b0),
         .clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
         .pressure_online(1'b0),.pressure_mv(12'd0),.control_rx(rx),.control_tx(),
         .control_status(),.uart_diagnostics(),.diagnostics_visible(),.volume_low(),

@@ -51,6 +51,7 @@ module tb_uart_control;
         line("D1","K");if(last_command!="D" || last_value!=1) $fatal(1,"Debug enable parse");
         line("D0","K");if(last_command!="D" || last_value!=0) $fatal(1,"Debug disable parse");
         line("D2","E");line("D01","E");line("D","E");
+        line("H1","K");line("H0","K");line("H2","E");line("H01","E");line("H","E");
         line("P0","E");line("P1","E"); // Removed page commands must not execute.
         line("P2","E");line("P01","E");line("P","E");
         line("V4096","K");if(last_value!=4096) $fatal(1,"Volume upper bound");

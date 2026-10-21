@@ -3,6 +3,7 @@
 // Read adjacent points on successive fabric clocks, reusing one waveform ROM.
 // Eight fractional phase bits suppress the spurs of a 256-point floor lookup.
 module synthesis_voice (
+    input wire sustain_down,
     input wire clk, rst, sample_ce, gate,
     input wire [31:0] phase_step,
     input wire [1:0] timbre,
@@ -14,7 +15,7 @@ module synthesis_voice (
     reg [1:0] preset=0;
     wire [15:0] envelope;
     assign envelope_level=envelope[15:8];
-    envelope_adsr amplitude(.clk(clk),.rst(rst),.sample_ce(sample_ce),
+    envelope_adsr amplitude(.sustain_down(sustain_down),.clk(clk),.rst(rst),.sample_ce(sample_ce),
         .gate(gate),.timbre(timbre),.level(envelope),.active(active));
     wire signed [15:0] waveform;
     reg read_next=0;
