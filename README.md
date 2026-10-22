@@ -11,7 +11,7 @@ Tang Mega 60K NEO（GW5AT-60B）上的纯 HDL 合成器，不使用处理器、M
 - 公共压力、颤音、延迟效果、延音、13 键灯和蓝牙参数控制。混音固定增益，32 声部预留额外 6dB 余量，新增按键不会使旧音自动变小。
 - GUIDE 最多 512 步，支持时值、休止、和弦、自动切换音区。内置原创《夜航练习曲》24 小节、192 步，覆盖四档音区；曲谱只指导真人演奏，不自行发声。
 
-队友 **chenxi639** 的波形/琴键反馈与 `feature/sustain-pedal` 延音实现已保留；**zrb** 主导平台集成、PCB 验证及本轮需求，Codex 协助实现与验证。详见[协作与更新说明](docs/collaboration_update.md)。此前的[延音版本说明](docs/sustain_release.md) 是历史记录，声部分配与 GUIDE 以当前实现为准。实体踏板适配器尚未接入，串口 H0/H1 可控制延音。
+队友 **chenxi639** 的波形/琴键反馈与 `feature/sustain-pedal` 延音实现已保留；**zrb** 主导平台集成、PCB 验证及本轮需求，Codex 协助实现与验证。详见[协作与更新说明](docs/collaboration_update.md)。实体踏板适配器尚未接入，串口 H0/H1 可控制延音。
 
 ## 构建与回归
 

@@ -72,8 +72,14 @@ foreach($release in $releases) {
     }
 }
 if(!$WhatIfPreference) {
-    $bitstreams=@(Get-ChildItem -LiteralPath $repoRoot -Recurse -File -Filter '*.fs' |
-        Where-Object { !$_.FullName.StartsWith((Join-Path $repoRoot '.git')+[IO.Path]::DirectorySeparatorChar) })
+    # Local verification archives and linked worktrees are outside cleanup's
+    # scope. Do not traverse them or reject their retained reference bitstreams.
+    $bitstreams=@(foreach($entry in Get-ChildItem -LiteralPath $repoRoot -Force) {
+        if($entry.Name -in @('.git','.local')) { continue }
+        if($entry.PSIsContainer) {
+            Get-ChildItem -LiteralPath $entry.FullName -Recurse -File -Filter '*.fs'
+        } elseif($entry.Extension -eq '.fs') { $entry }
+    })
     if($bitstreams.Count -ne $releases.Count -or @($bitstreams | Where-Object { $_.FullName -notin $releases }).Count -ne 0) {
         throw 'Unexpected additional bitstreams remain; inspect them manually.'
     }
