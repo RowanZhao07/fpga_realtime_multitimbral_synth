@@ -21,7 +21,7 @@ module tb_wallpaper;
     instrument_screen #(.WALLPAPER_HOLD_FRAMES(2)) screen(.clk(clk),.rst(rst),
         .x(x),.y(y),.de(de),.hs(1'b0),.vs(1'b0),.vertical_blank(blank),
         .status(status),.visual_ready(1'b1),.visual_data(data),.visual_address(addr),
-        .voice_levels(fixture_levels),.scope_ready(1'b1),.scope_data(data),.scope_address(),
+        .voice_levels(fixture_levels),.octave_select(2'd1),.scope_ready(1'b1),.scope_data(data),.scope_address(),
         .rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     reg [1:0] valid=0;
     always @(posedge clk) begin

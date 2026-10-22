@@ -4,6 +4,8 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     input wire clk,rst,input wire [10:0] x,input wire [9:0] y,
     input wire de,hs,vs,vertical_blank,input wire [203:0] status,
     input wire [103:0] voice_levels,
+    input wire [1:0] octave_select,
+    input wire [31:0] performance_info,
     input wire scope_ready,input wire [7:0] scope_data,output wire [8:0] scope_address,
     input wire visual_ready,input wire [7:0] visual_data,
     output wire [9:0] visual_address,
@@ -15,13 +17,13 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     reg signed [7:0] scope_plot=0,previous_scope=0;
     reg scope_ready0=0,scope_plot_ready=0;
     reg ready0=0,plot_ready=0;
-    wire [23:0] wallpaper_rgb;
-    wire [2:0] wallpaper_index;
-    wallpaper_background #(.HOLD_FRAMES(WALLPAPER_HOLD_FRAMES)) wallpaper(
-        .clk(clk),.rst(rst),.vertical_blank(vertical_blank),.x(x),.y(y),
-        .rgb(wallpaper_rgb),.image_index(wallpaper_index));
+    wire [23:0] wallpaper_rgb=24'h0B1220;
+    wire [2:0] wallpaper_index=0;
     reg [203:0] display_status=0;
+    reg [31:0] display_performance=0;
     reg [103:0] display_levels=0;
+    reg [1:0] display_octave=2'd1;
+    wire [7:0] octave_digit=8'd51+{6'd0,display_octave};
     wire diagnostics_visible=display_status[195];
     wire [83:0] uart_diagnostics=display_status[194:111];
     wire [7:0] uart_bytes=uart_diagnostics[83:76],uart_frames=uart_diagnostics[75:68];
@@ -29,7 +31,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     wire [63:0] uart_first_bytes=uart_diagnostics[63:0];
     wire [12:0] guide_mask=display_status[78:66];
     wire [7:0] bpm=display_status[86:79];
-    wire [6:0] score_length=display_status[93:87];
+    wire [9:0] score_length=display_performance[25:16];
     wire custom_score=display_status[94];
     wire [7:0] rx_ok=display_status[102:95],rx_error=display_status[110:103];
     wire adc_online=display_status[65];
@@ -43,7 +45,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     wire online=display_status[23],vibrato=display_status[24],echo_on=display_status[25];
     wire test_on=display_status[26],guide_on=display_status[27];
     wire lamp_test=display_status[39];
-    wire [5:0] position=display_status[36:31];
+    wire [8:0] position=display_performance[15:7];
     wire [10:0] plot_x=x-11'd28;
     assign visual_address={y>=396,plot_x[8:0]};
     assign scope_address=plot_x[8:0];
@@ -56,7 +58,8 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     // Status text is formatted only at the coherent vertical-blank snapshot.
     reg [55:0] pressure_text="0.000 V";
     reg [23:0] volume_text="000",bpm_text="000",rx_text="000",error_text="000";
-    reg [15:0] voice_text="00",step_text="01",length_text="00";
+    reg [15:0] voice_text="00";
+    reg [23:0] step_text="001",length_text="192";
     function [7:0] digit;
         input integer n;
         begin digit=8'd48+n;end
@@ -87,16 +90,18 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     endfunction
     function [15:0] white_note;
         input integer note;
+        input [7:0] oct;
         begin case(note)
-            0:white_note="C4";1:white_note="D4";2:white_note="E4";3:white_note="F4";
-            4:white_note="G4";5:white_note="A4";6:white_note="B4";default:white_note="C5";
+            0:white_note={"C",oct};1:white_note={"D",oct};2:white_note={"E",oct};3:white_note={"F",oct};
+            4:white_note={"G",oct};5:white_note={"A",oct};6:white_note={"B",oct};default:white_note={"C",(oct+8'd1)};
         endcase end
     endfunction
     function [23:0] sharp_note;
         input integer note;
+        input [7:0] oct;
         begin case(note)
-            0:sharp_note="C#4";1:sharp_note="D#4";2:sharp_note="F#4";
-            3:sharp_note="G#4";default:sharp_note="A#4";
+            0:sharp_note={"C#",oct};1:sharp_note={"D#",oct};2:sharp_note={"F#",oct};
+            3:sharp_note={"G#",oct};default:sharp_note={"A#",oct};
         endcase end
     endfunction
     // Every label has a local origin and an explicit width, rather than a
@@ -141,7 +146,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     always @* begin
         text_visible=0;text_dx=0;text_dy=0;text_length=0;text_line=0;text_ink=0;
         label(x,y,28,24,28,"TANG MEGA / POLYPHONIC SYNTH",24'hF1F1FA);
-        label(x,y,28,44,20,"13 VOICES / PURE HDL",24'h9CAEC9);
+        label(x,y,28,44,20,{"32 VOICES / OCTAVE ",octave_digit},24'h9CAEC9);
         case(timbre)
             0:label(x,y,416,24,9,"TONE SINE",24'hC8BCFF);
             1:label(x,y,416,24,11,"TONE EPIANO",24'hC8BCFF);
@@ -149,11 +154,11 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
             3:label(x,y,416,24,10,"TONE METAL",24'hC8BCFF);
         endcase
         label(x,y,416,44,9,"48.8K I2S",24'h9CAEC9);
-        label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : "LIVE INPUT",24'hC8BCFF);
+        label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "WAIT NOTE ") : "LIVE INPUT",24'hC8BCFF);
         for(key_label=0;key_label<8;key_label=key_label+1)
-            label(x,y,48+64*key_label,146,2,white_note(key_label),24'h142137);
+            label(x,y,48+64*key_label,146,2,white_note(key_label,octave_digit),24'h142137);
         for(sharp_label=0;sharp_label<5;sharp_label=sharp_label+1)
-            label(x,y,74+64*(sharp_label<2 ? sharp_label : sharp_label+1),102,3,sharp_note(sharp_label),24'hF1F1FA);
+            label(x,y,74+64*(sharp_label<2 ? sharp_label : sharp_label+1),102,3,sharp_note(sharp_label,octave_digit),24'hF1F1FA);
         label(x,y,28,204,12,"DIGITAL WAVE",24'hC8BCFF);
         label(x,y,508,204,2,"4X",24'h9CAEC9);
         label(x,y,28,224,25,"I2S OUT / 10.49 MS / TRIG",24'h9CAEC9);
@@ -165,7 +170,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
         label(x,y,396,532,4,"4.5K",24'h9CAEC9);
         label(x,y,516,532,2,"6K",24'h9CAEC9);
         label(x,y,576,88,online ? 12 : 13,online ? "TOUCH ONLINE" : "TOUCH OFFLINE",online ? 24'h48E0C0 : 24'hFFA3A8);
-        label(x,y,576,112,14,{"VOICES ",voice_text," / 13"},24'hF1F1FA);
+        label(x,y,576,112,14,{"VOICES ",voice_text," / 32"},24'hF1F1FA);
         label(x,y,576,140,8,"PRESSURE",24'hC8BCFF);
         label(x,y,576,160,7,adc_online ? pressure_text : "-.--- V",24'hF1F1FA);
         label(x,y,adc_online ? 696 : 684,160,adc_online ? 6 : 7,adc_online ? "ADC OK" : "ADC OFF",adc_online ? 24'h48E0C0 : 24'hFFA3A8);
@@ -184,15 +189,15 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
             label(x,y,576,520,14,{"D4 ",trace_hex(4,uart_first_bytes,uart_capture_count)," ",trace_hex(5,uart_first_bytes,uart_capture_count)," ",trace_hex(6,uart_first_bytes,uart_capture_count)," ",trace_hex(7,uart_first_bytes,uart_capture_count)},24'hF1F1FA);
         end else begin
             label(x,y,576,408,guide_on ? 8 : 9,guide_on ? "GUIDE ON" : "GUIDE OFF",24'hC8BCFF);
-            label(x,y,576,432,custom_score ? 9 : 8,custom_score ? "SONG USER" : "SONG ROM",24'hF1F1FA);
-            label(x,y,576,452,10,{"STEP ",step_text,"/",length_text},24'hF1F1FA);
+            label(x,y,576,432,custom_score ? 9 : 8,custom_score ? "SONG USER" : "NOCTURNE",24'hF1F1FA);
+            label(x,y,576,452,12,{"STEP ",step_text,"/",length_text},24'hF1F1FA);
             label(x,y,576,476,7,{"BPM ",bpm_text},24'hF1F1FA);
-            label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : "LIVE INPUT",24'h9CAEC9);
+            label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "WAIT NOTE ") : "LIVE INPUT",24'h9CAEC9);
             label(x,y,576,524,13,{"RX ",rx_text," ER ",error_text},24'h9CAEC9);
         end
         if(TOUCH_DEBUG)
             label(x,y,28,568,36,"DEFAULT SUSTAIN  UART H0 OFF / H1 ON",24'hCAD4E6);
-        else label(x,y,28,568,49,"C0 TONE/ECHO  C1/2 GAIN  HOLD C3 VIB  C1+C2 GUIDE",24'hCAD4E6);
+        else label(x,y,28,568,58,"C0 TONE/ECHO C1/2 GAIN C3 VIB C1+C2 GUIDE X0+C0..3 OCT3..6",24'hCAD4E6);
     end
     always @* begin
         next_character=8'd32;
@@ -268,9 +273,6 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
         sharp_level=0;sharp_meter=0;
         if(panel) color=glass_rgb;
         if(panel && !panel_inner) color=24'h495166;
-        for(dot=0;dot<8;dot=dot+1)
-            if(px>=654+dot*14 && px<662+dot*14 && py>=28 && py<34)
-                color=wallpaper_index==dot ? 24'hD8CCFF : 24'h636C85;
         if(px>=28 && px<540 && py>=88 && py<168 && key_offset[5:0]<62) begin
             color=gates[key_index] ? 24'h60D9CA :
                 active[key_index] ? {8'h91,8'hB9,tail_blue} : 24'hCDD5E5;
@@ -322,6 +324,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
         text_pixel<=next_text_pixel;character<=next_character;glyph_ink<=label_ink;
         if(rst) begin
             display_status<=0;display_levels<=0;rgb<=0;out_de<=0;out_hs<=0;out_vs<=0;
+            display_octave<=2'd1;display_performance<=0;
             scope_plot<=0;previous_scope<=0;scope_ready0<=0;scope_plot_ready<=0;
             de0<=0;de_delay<=0;hs0<=0;hs_delay<=0;vs0<=0;vs_delay<=0;
             ready0<=0;plot_ready<=0;
@@ -333,11 +336,12 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
             if(vertical_blank) begin
                 display_status<=status;
                 display_levels<=voice_levels;
+                display_octave<=octave_select;display_performance<=performance_info;
                 pressure_text<={digit(status[64:53]/1000),".",decimal3(status[64:53]%1000)," V"};
                 volume_text<=decimal3(({status[22:18],status[203:196]}*100)/4096);
-                voice_text<=decimal2(count_voices({status[49:45],status[15:8]}));
-                step_text<=decimal2({1'b0,status[36:31]}+7'd1);
-                length_text<=decimal2(status[93:87]);bpm_text<=decimal3(status[86:79]);
+                voice_text<=decimal2(performance_info[31:26]);
+                step_text<=decimal3({1'b0,performance_info[15:7]}+10'd1);
+                length_text<=decimal3(performance_info[25:16]);bpm_text<=decimal3(status[86:79]);
                 rx_text<=decimal3(status[102:95]);error_text<=decimal3(status[110:103]);
             end
             rgb<=de_delay ? color : 24'd0;

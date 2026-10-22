@@ -37,7 +37,7 @@ module tb_top_integration;
  if(dut.scope_memory.memory[{dut.scope_memory.read_bank,i[8:0]}]!==0) $fatal(1,"Top scope bank mapping");
  if(dut.visual_memory.memory[{dut.visual_memory.read_bank,i[8:0]}]!==0) $fatal(1,"Top spectrum bank mapping");
  end
- // Exercise the core -> 308-bit mailbox -> renderer path with all 13 notes.
+ // Exercise the core -> 342-bit mailbox -> renderer path with all 13 notes.
  // Only touch status is injected; the core envelope/audio clocks remain real.
  force dut.online=1'b1;force dut.chip_online=2'b11;
  force dut.touched={1'b0,5'h1f,4'b0,8'hff}; // X0, sharps, controls, white notes
@@ -46,6 +46,11 @@ module tb_top_integration;
  if(dut.pixel_levels[i*8+:8]<32) $fatal(1,"Top missing voice level %0d",i);
  wait(dut.screen.display_levels[103:96]>=32);
  if(dut.screen.gates!==13'h1fff) $fatal(1,"Main 13-key status lost in widened mailbox");
+ force dut.touched={1'b1,5'h1f,4'b1000,8'hff}; // X0+C3 selects octave 6.
+ wait(dut.octave_select===2'd3);wait(dut.screen.display_octave===2'd3);
+ if(dut.pixel_octave!==2'd3 || dut.core.vibrato) $fatal(1,"Octave mailbox/modifier wiring");
+ if(dut.core.engine.steps[0]!==32'd23012828) $fatal(1,"Held note retuned by UI bank switch");
+ if(dut.key_lights!==13'h1fff) $fatal(1,"X0 lamp check lost");
  release dut.online;release dut.chip_online;release dut.touched;
  $display("PASS: full primitive-backed top, %0d scope frames before first FFT, compact banks, idle PCM and 13 voice levels",scope_frames);
  $display("ALL TESTS PASSED");$finish;

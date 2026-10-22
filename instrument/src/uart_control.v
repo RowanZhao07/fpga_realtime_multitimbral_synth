@@ -56,11 +56,14 @@ module uart_control #(
         if(!bad) case(opcode)
         "?","N","Z","R":legal=count==1;
         "T":legal=count==2 && number<=3;
+        "O":legal=count==2 && number>=3 && number<=6;
+        "U":legal=count>=2 && count<=4 && number>=1 && number<=255;
         "D","E","G","H":legal=count==2 && number<=1;
         "V":legal=count>=2 && count<=5 && number<=4096;
         "L":legal=count>=2 && count<=4 && number<=256;
+        "J":legal=count>=2 && count<=5 && number<=8192;
         "B":legal=count>=2 && count<=4 && number>=40 && number<=240;
-        "A":legal=count==5 && number!=0 && number<=16'h1FFF;
+        "A":legal=count==5 && number<=16'h1FFF;
         default:legal=0;
         endcase
     end

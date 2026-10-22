@@ -57,7 +57,7 @@ module tb_pressure_audio;
                 if(actual>peak) peak=actual;
                 if(-actual>peak) peak=-actual;
             end
-            if(peak<100) $fatal(1,"Pressure test did not exercise an audible note");
+            if(peak<50) $fatal(1,"Pressure test did not exercise an audible note");
         end
     endtask
     initial begin

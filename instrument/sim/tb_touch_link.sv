@@ -12,10 +12,11 @@ module tb_touch_link;
     wire online;
     wire [1:0] chip_online;
     wire [17:0] touched;
+    wire [31:0] diagnostics;
     mpr121_controller #(.QUARTER(8), .TIMEOUT(50000), .POWER_WAIT(100),
         .RESET_WAIT(100), .RETRY_WAIT(500), .POLL_WAIT(100)) dut (
         .clk(clk), .rst(rst), .scl(scl[0]), .sda(sda[0]), .scl_b(scl[1]), .sda_b(sda[1]),
-        .online(online), .chip_online(chip_online), .touched(touched));
+        .online(online), .chip_online(chip_online), .touched(touched),.diagnostics(diagnostics));
     mpr121_test_device a(.scl(scl[0]),.sda(sda[0]),.present(present[0]));
     mpr121_test_device b(.scl(scl[1]),.sda(sda[1]),.present(present[1]));
     wire bck,lrck,din;
@@ -29,6 +30,12 @@ module tb_touch_link;
             if(core.gates[0] && !previous_gate) note_attacks<=note_attacks+1;
         end
     end
+    function integer held_slot(input integer key);
+        integer n;
+        begin held_slot=0;for(n=0;n<32;n=n+1)
+            if(core.engine.occupied[n] && core.engine.held[n] && core.engine.owner[n]==key) held_slot=n;
+        end
+    endfunction
     integer before_attacks;
     reg [1:0] before_preset;
     instrument_core core(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
@@ -86,6 +93,9 @@ module tb_touch_link;
             @(negedge clk);
             hold_scl[stuck]=1;
             wait(!chip_online[stuck]);
+            @(negedge clk);
+            if((stuck==1 ? diagnostics[19:16] : diagnostics[3:0])!=2)
+                $fatal(1,"Stuck SCL diagnostic missing on bank %0d",stuck);
             other_reads=(stuck==1) ? a.reads : b.reads;
             repeat(20000) @(posedge clk);
             if(!chip_online[1-stuck] || online || touched!=0)
@@ -104,6 +114,8 @@ module tb_touch_link;
         repeat(100000) @(posedge clk);
         if(chip_online!==2'b01 || online || touched!=0)
             $fatal(1,"A must initialize independently while B is absent");
+        if(diagnostics[19:16]!=1 || diagnostics[27:20]==0 || diagnostics[11:0]!=0)
+            $fatal(1,"Absent B must retain NACK/count without blaming healthy A");
         present[1]=1;
         repeat(100000) @(posedge clk);
         if(chip_online!==2'b11 || !online)
@@ -146,14 +158,14 @@ module tb_touch_link;
         wait_touch(12'h101); repeat(3000) @(posedge clk);
         wait_touch(12'h001); repeat(3000) @(posedge clk);
         if(core.timbre!==((before_preset+1)&3) ||
-           core.engine.voice_bank[0].voice.preset!==before_preset ||
+           core.engine.preset[held_slot(0)]!==before_preset ||
            note_attacks!=before_attacks+1)
             $fatal(1,"Preset change must preserve the held voice");
         wait_touch(0); repeat(3000) @(posedge clk);
         if((~led & 8'hF0)!==(8'h10 << core.timbre))
             $fatal(1,"Idle preset indicator mismatch");
         wait_touch(12'h001); repeat(3000) @(posedge clk);
-        if(core.engine.voice_bank[0].voice.preset!==core.timbre ||
+        if(core.engine.preset[held_slot(0)]!==core.timbre ||
            note_attacks!=before_attacks+2)
             $fatal(1,"Next note did not use the selected preset");
         wait_touch(0); repeat(3000) @(posedge clk);
@@ -169,8 +181,12 @@ module tb_touch_link;
         if(touched!=0) $fatal(1,"Stale touch after A NACK");
         present[0]=1; wait(online);
         $display("PASS: either board NACK clears all gates and retries initialization");
-        a.registers[1]=8'h80; wait(!online); wait(online);
-        b.registers[1]=8'h80; wait(!online); wait(online);
+        a.registers[1]=8'h80; wait(!online); @(negedge clk);
+        if(diagnostics[3:0]!=6) $fatal(1,"A OVCF reason missing");
+        wait(online);
+        b.registers[1]=8'h80; wait(!online); @(negedge clk);
+        if(diagnostics[19:16]!=6) $fatal(1,"B OVCF reason missing");
+        wait(online);
         $display("PASS: overcurrent status triggers reinitialization");
         // Hold each clock low in turn; the other bus must keep polling.
         check_stuck_bus(1);
@@ -181,7 +197,7 @@ module tb_touch_link;
             $fatal(1,"Touch to polyphonic I2S integration failed");
         $display("PASS: I2C touch -> note gates -> synthesis -> decoded stereo I2S (%0d frames)",decoded);
         wait_touch(12'hF00); repeat(40000) @(posedge clk);
-        if(!core.spectrum_mode || core.active!=8'hFF || core.engine.voice_bank[0].voice.preset!=0)
+        if(!core.spectrum_mode || core.active!=8'hFF || core.engine.preset[held_slot(0)]!=0)
             $fatal(1,"Spectrum mode reset and eight-voice restart failed");
         wait_touch(0); repeat(4000) @(posedge clk);
         wait_touch(12'hF00); repeat(40000) @(posedge clk);

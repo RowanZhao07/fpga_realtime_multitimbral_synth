@@ -1,5 +1,5 @@
 param([string]$VivadoBin, [string]$Python='python',
-      [string]$GowinSimLib, [switch]$CheckTools)
+      [string]$GowinSimLib, [switch]$CheckTools, [string]$Only, [switch]$NoAnalysis)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot '../tools/toolchain.ps1')
 $GowinSimLib = Resolve-GowinSimLib $GowinSimLib
@@ -19,16 +19,15 @@ try {
     # zero-initializes pROMX9.ram_MEM despite nonzero INIT_RAM parameters.
     & $xvlog $GowinSimLib
     if($LASTEXITCODE) { throw 'Gowin simulation library compilation failed' }
-    & $xvlog --sv @sources tb_controls.sv tb_echo.sv tb_synthesis.sv tb_voice_quality.sv tb_touch_link.sv tb_pressure_link.sv tb_pressure_audio.sv tb_hc595.sv tb_board_clock.sv tb_spectrum.sv tb_video.sv tb_wallpaper.sv tb_visual_link.sv tb_serial_video.sv tb_latency.sv tb_uart_control.sv tb_uart_diagnostics.sv tb_uart_tx_notice.sv tb_score_upload.sv tb_remote_instrument.sv
-    if($LASTEXITCODE) { throw 'RTL compilation failed' }
-    & $xvlog --sv tb_lamp_diagnostics.sv tb_timbre_profiles.sv tb_i2s_audio.sv tb_waveform.sv tb_scope_link.sv tb_screen_feedback.sv tb_voice_feedback.sv tb_top_integration.sv tb_sustain_envelope.sv tb_sustain_control.sv tb_sustain_audio.sv tb_touch_debug.sv
-    if($LASTEXITCODE) { throw 'Additional RTL test compilation failed' }
-    foreach($test in @('tb_touch_debug','tb_sustain_envelope','tb_sustain_control','tb_sustain_audio','tb_waveform','tb_scope_link','tb_screen_feedback','tb_voice_feedback','tb_top_integration','tb_controls','tb_echo','tb_synthesis','tb_voice_quality','tb_timbre_profiles','tb_chord_audio','tb_i2s_audio','tb_touch_link','tb_pressure_link','tb_pressure_audio','tb_hc595','tb_key_lights','tb_lamp_diagnostics','tb_board_clock','tb_spectrum','tb_video','tb_wallpaper','tb_visual_link','tb_serial_video','tb_latency','tb_uart_control','tb_uart_diagnostics','tb_uart_tx_notice','tb_score_upload','tb_remote_instrument','tb_tempo')) {
+    $benches=Get-ChildItem tb*.sv | Where-Object Name -ne 'tb_wallpaper.sv' | ForEach-Object FullName
+    & $xvlog --sv @sources @benches
+    if($LASTEXITCODE) { throw 'RTL/test compilation failed' }
+    $tests=@('tb_octave_controls','tb_octave_audio','tb_i2c_recovery','tb_touch_debug','tb_sustain_envelope','tb_sustain_control','tb_sustain_audio','tb_waveform','tb_scope_link','tb_screen_feedback','tb_voice_feedback','tb_top_integration','tb_controls','tb_echo','tb_synthesis','tb_voice_quality','tb_timbre_profiles','tb_chord_audio','tb_i2s_audio','tb_touch_link','tb_pressure_link','tb_pressure_audio','tb_hc595','tb_key_lights','tb_lamp_diagnostics','tb_board_clock','tb_spectrum','tb_video','tb_visual_link','tb_serial_video','tb_latency','tb_uart_control','tb_uart_diagnostics','tb_uart_tx_notice','tb_score_upload','tb_remote_instrument','tb_tempo','tb_voice_allocator','tb_guide_timing','tb_dynamic_timbre','tb_guide_auto')
+    if($Only){ $tests=$Only.Split(',') }
+    foreach($test in $tests) {
         # Full-frame raster tests need no interactive HDL debugging. Keep all
         # testbench assertions while avoiding costly per-signal debug access.
-        $elaborationOptions = if($test -in @('tb_video','tb_wallpaper')) {
-            @('--O3','--debug','off')
-        } else { @('-debug','typical') }
+        $elaborationOptions=@('--O3','--debug','off')
         & $xelab $test -s $test @elaborationOptions
         if($LASTEXITCODE) { throw "Elaboration failed: $test" }
         & $xsim $test -runall
@@ -37,18 +36,24 @@ try {
         }
         Copy-Item xsim.log "$test.log" -Force
     }
+    if(!$NoAnalysis){
+    & $Python ../tools/analyze_octaves.py
+    if($LASTEXITCODE) { throw 'Octave PCM pitch analysis failed' }
     & $Python ../tools/analyze_sustain.py
     if($LASTEXITCODE) { throw 'Sustain audio analysis failed' }
+    & $Python ../tools/analyze_dynamic_timbre.py
+    if($LASTEXITCODE) { throw 'Dynamic timbre analysis failed' }
     & $Python ../tools/analyze_audio.py
     if($LASTEXITCODE) { throw 'Audio analysis failed' }
     & $Python ../tools/analyze_chords.py
     if($LASTEXITCODE) { throw 'Chord analysis failed' }
     & $Python ../tools/analyze_visual.py
     if($LASTEXITCODE) { throw 'Visual analysis failed' }
-    & $Python ../tools/analyze_wallpapers.py
-    if($LASTEXITCODE) { throw 'Wallpaper pixel comparison failed' }
     & $Python test_serial_control.py
     if($LASTEXITCODE) { throw 'Serial host-tool tests failed' }
+    & $Python test_measure_latency.py
+    if($LASTEXITCODE) { throw 'Analog measurement tool tests failed' }
     & $Python ../tools/preserve_sim_media.py
     if($LASTEXITCODE) { throw 'Simulation media preservation failed' }
+    }
 } finally { Pop-Location }

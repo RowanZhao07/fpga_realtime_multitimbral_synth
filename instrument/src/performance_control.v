@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-// White notes [7:0], controls [11:8], sharp notes [16:12], reserved X0 [17].
+// White notes [7:0], controls [11:8], sharp notes [16:12], octave modifier X0 [17].
 module performance_control #(
     parameter [1:0] DEFAULT_TIMBRE=2'd0,
     parameter integer HOLD_SAMPLES=48828,
@@ -11,6 +11,7 @@ module performance_control #(
     output wire [12:0] gates,
     output reg [1:0] timbre=DEFAULT_TIMBRE,
     output reg [12:0] volume=2048,
+    output reg [1:0] octave_select=2'd1, // 0..3 select C3..C6; default C4.
     output wire vibrato,
     output reg spectrum_mode=0,
     output reg echo_enabled=0,
@@ -21,7 +22,11 @@ module performance_control #(
     reg combo_used=0;
     reg [16:0] effect_count=0, guide_count=0;
     reg effect_used=0, guide_used=0;
-    wire [3:0] control=online ? touched[11:8] : 4'b0;
+    wire [3:0] raw_control=online ? touched[11:8] : 4'b0;
+    wire octave_modifier=online && touched[17];
+    reg octave_gesture=0,octave_used=0;
+    wire suppress_controls=octave_modifier || octave_gesture;
+    wire [3:0] control=suppress_controls ? 4'b0 : raw_control;
     wire all_control=&control;
     wire volume_repeat=(repeat_count==REPEAT_SAMPLES-1);
     // Keep the calibrated eight-sine spectrum test; live play has 13 notes.
@@ -33,8 +38,31 @@ module performance_control #(
             hold_count<=0; repeat_count<=0; combo_used<=0;
             effect_count<=0; guide_count<=0; effect_used<=0; guide_used<=0;
             echo_enabled<=0; guide_enabled<=0;
+            octave_select<=2'd1;octave_gesture<=0;octave_used<=0;
         end else begin
           if(sample_ce) begin
+            // One selection per X0 gesture. Consume ambiguous multi-key chords
+            // too, so releasing one control cannot accidentally select a bank.
+            if(!online) begin octave_gesture<=0;octave_used<=0;end
+            else if(octave_modifier) begin
+                octave_gesture<=1;
+                if(!octave_used && |raw_control) begin
+                    octave_used<=1;
+                    if(!spectrum_mode) case(raw_control)
+                        4'b0001:octave_select<=2'd0;
+                        4'b0010:octave_select<=2'd1;
+                        4'b0100:octave_select<=2'd2;
+                        4'b1000:octave_select<=2'd3;
+                        default:begin end
+                    endcase
+                end
+            end else if(raw_control==0) begin octave_gesture<=0;octave_used<=0;end
+            // Swallow both release orders until X0 and all controls are up.
+            if(suppress_controls) begin
+                previous<=0;hold_count<=0;repeat_count<=0;combo_used<=0;
+                effect_count<=0;guide_count<=0;effect_used<=0;guide_used<=0;
+                if(!online) spectrum_mode<=0;
+            end else begin
             previous<=control;
             if(control==4'b0001 && !spectrum_mode && !combo_used) begin
                 if(!effect_used) begin
@@ -71,6 +99,7 @@ module performance_control #(
                     volume<=volume<768 ? 13'd512 : volume-13'd256;
                 if(control[2:1]==2'b10 && (!previous[2] || volume_repeat) && volume<4096)
                     volume<=volume>3840 ? 13'd4096 : volume+13'd256;
+            end
             end
           end
           // Same clock domain; remote commands win a coincident local gesture.

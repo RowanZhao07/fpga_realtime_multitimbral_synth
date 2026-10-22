@@ -1,7 +1,7 @@
-"""Keep simulation pictures in Git-visible assets before cleaning raw output.
+"""Keep current previews in Git and archive other simulation media locally.
 
 PPM frames are saved as lossless PNG; exact pixel duplicates are skipped.
-Replaced pictures retain a content-addressed copy in history/. WAVs stay local.
+Replaced pictures retain a content-addressed copy under .local/. WAVs stay local.
 All locations are resolved from this script, independent of the caller's cwd.
 """
 from hashlib import sha256
@@ -13,6 +13,9 @@ from PIL import Image
 ROOT = Path(__file__).resolve().parents[2]
 SIM = ROOT / "instrument/sim"
 ASSETS = ROOT / "assets/simulation"
+LOCAL = ROOT / ".local/simulation_media"
+CURRENT = {"eight_voices_spectrum.png", "screen_preview.png",
+           "screen_debug_preview.png", "screen_offline_preview.png"}
 PICTURES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg"}
 
 
@@ -30,8 +33,8 @@ def preserve(source, target):
         old = target.read_bytes()
         if old == source.read_bytes():
             return
-        archive = target.parent / "history" / f"{target.stem}-{sha256(old).hexdigest()[:12]}{target.suffix}"
-        safe(archive).parent.mkdir(exist_ok=True)
+        archive = LOCAL / "history" / f"{target.stem}-{sha256(old).hexdigest()[:12]}{target.suffix}"
+        safe(archive).parent.mkdir(parents=True, exist_ok=True)
         if archive.exists() and archive.read_bytes() != old:
             raise RuntimeError(f"Archive name collision: {archive.name}")
         if not archive.exists():
@@ -50,12 +53,12 @@ def main():
         if not source.is_file():
             continue
         if source.suffix.lower() in PICTURES:
-            preserve(source, ASSETS / source.name)
+            preserve(source, (ASSETS if source.name in CURRENT else LOCAL / "exports") / source.name)
         elif source.suffix.lower() == ".wav":
             preserve(source, ROOT / ".local/simulation_audio" / source.name)
 
     known = set()
-    for path in ASSETS.rglob("*.png"):
+    for path in list(ASSETS.rglob("*.png")) + list(LOCAL.rglob("*.png")):
         with Image.open(safe(path)) as image:
             known.add(pixel_key(image))
     for source in sorted(SIM.glob("*.ppm")):
@@ -63,14 +66,14 @@ def main():
             key = pixel_key(image)
             if key in known:
                 continue
-            target = ASSETS / "frames" / f"{source.stem}-{key[1].hex()[:12]}.png"
+            target = LOCAL / "frames" / f"{source.stem}-{key[1].hex()[:12]}.png"
             safe(target).parent.mkdir(exist_ok=True)
             if not target.exists():
                 image.save(target)
             with Image.open(target) as saved:
                 assert pixel_key(saved) == key, target.name
             known.add(key)
-    print("Simulation pictures preserved in assets/simulation; WAVs in .local/simulation_audio.")
+    print("Current previews: assets/simulation; history/frames: .local/simulation_media; WAVs: .local/simulation_audio.")
 
 
 if __name__ == "__main__":

@@ -12,9 +12,6 @@ module tb_visual_link;
     reg [203:0] status=0;wire [203:0] pixel_status;
     status_mailbox #(.WIDTH(204)) mailbox(.src_clk(aclk),.src_rst(rst),.src_data(status),
         .dst_clk(pclk),.dst_rst(rst),.dst_data(pixel_status));
-    reg guide_enabled=0;reg [12:0] gates=0;wire [2:0] target;wire [5:0] position;wire correct;
-    practice_guide guide(.clk(aclk),.rst(rst),.sample_ce(1'b1),.enabled(guide_enabled),
-        .command_valid(1'b0),.command(8'd0),.value(16'd0),.input_error(1'b0),.command_ok(),.target_mask(),.length(),.custom(),.gates(gates),.target(target),.position(position),.correct(correct));
     integer pass,i,j;
     reg old_bank;
     always @(posedge pclk) if(!rst && pixel_status!=0 && pixel_status!==STATUS_A && pixel_status!==STATUS_B)
@@ -40,19 +37,7 @@ module tb_visual_link;
             end
         end
         if(pixel_status!==status) $fatal(1,"Mailbox update");
-        guide_enabled=1; repeat(3) @(negedge aclk);
-        gates=8'h04; repeat(5) @(negedge aclk);if(position!=0) $fatal(1,"Wrong note advanced guide");
-        gates=0; repeat(2) @(negedge aclk);
-        for(j=0;j<14;j=j+1) begin
-            gates=13'h1000; repeat(3) @(negedge aclk);
-            if(position!==j) $fatal(1,"Sharp key changed white-note guide position");
-            gates=0; repeat(2) @(negedge aclk);
-            gates=8'b1<<target; repeat(5) @(negedge aclk);
-            if(position!==((j+1)%14)) $fatal(1,"Guide step/held-key repeat");
-            gates=0; repeat(2) @(negedge aclk);
-        end
-        guide_enabled=0;repeat(2) @(negedge aclk);if(position!=0) $fatal(1,"Guide reset");
-        $display("PASS: coherent status mailbox, three double-buffer handoffs, 14-note manual guide");
+        $display("PASS: coherent status mailbox, three double-buffer handoffs");
         $display("ALL TESTS PASSED");$finish;
     end
     initial begin #1000000;$fatal(1,"Visual-link watchdog");end

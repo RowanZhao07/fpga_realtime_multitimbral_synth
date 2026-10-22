@@ -1,11 +1,11 @@
 `timescale 1ns/1ps
 module tb_voice_feedback;
     reg clk=0;always #10 clk=~clk;
-    reg rst=1;reg [3:0] divider=0;reg [12:0] gates=0;
-    wire ce=divider==15;wire [12:0] active;wire [103:0] levels;
+    reg rst=1;reg [9:0] divider=0;reg [12:0] gates=0;
+    wire ce=divider==1023;wire [12:0] active;wire [103:0] levels;
     wire signed [18:0] mixed;wire valid;
-    always @(posedge clk) if(rst) divider<=0;else divider<=divider+1'b1;
-    polyphonic_engine dut(.sustain_down(1'b0),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
+    always @(posedge clk) if(rst) divider<=0;else divider<=divider==1023 ? 0 : divider+1'b1;
+    polyphonic_engine dut(.sustain_down(1'b0),.octave_select(2'd1),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .timbre(2'd2),.vibrato(1'b0),.mixed(mixed),.valid(valid),.active(active),.voice_levels(levels));
     task samples(input integer n);
         repeat(n) begin @(negedge clk);while(!ce) @(negedge clk);@(negedge clk);end
@@ -34,5 +34,5 @@ module tb_voice_feedback;
         $display("PASS: real 13-voice audio, ADSR feedback, independent white/sharp release, last-sharp retrigger, reset");
         $display("ALL TESTS PASSED");$finish;
     end
-    initial begin #10000000;$fatal(1,"Voice-feedback watchdog");end
+    initial begin #1000000000;$fatal(1,"Voice-feedback watchdog");end
 endmodule

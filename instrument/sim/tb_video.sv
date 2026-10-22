@@ -9,6 +9,7 @@ module tb_video;
     wire [23:0] rgb;wire od,oh,ov;
     // Deterministic input fixtures for visual layout; not claimed as board audio.
     reg [203:0] status=0;
+    reg [1:0] octave_select=1;
     wire [12:0] fixture_active={status[49:45],status[15:8]};
     wire [103:0] fixture_levels;
     for(genvar v=0;v<13;v=v+1) begin: feedback_fixture
@@ -17,8 +18,8 @@ module tb_video;
     reg expected_adc_online=0,expected_debug=0;
     integer expected_mv=0;
     instrument_screen screen(.clk(clk),.rst(rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
-        .vertical_blank(blank),.status(status),.visual_ready(1'b1),.visual_data(data),
-        .voice_levels(fixture_levels),.scope_ready(1'b1),.scope_data(data),.scope_address(),
+        .vertical_blank(blank),.status(status),.performance_info({6'd13,10'd192,9'd4,7'd0}),.visual_ready(1'b1),.visual_data(data),
+        .voice_levels(fixture_levels),.octave_select(octave_select),.scope_ready(1'b1),.scope_data(data),.scope_address(),
         .visual_address(addr),.rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     reg [2:0] sync1=0,sync2=0,sync3=0;
     reg [10:0] rendered_x1=0,rendered_x2=0,rendered_x3=0;
@@ -55,7 +56,7 @@ module tb_video;
     wire [9:0] symbol;
     tmds_encoder encoder(.clk(clk),.rst(rst),.de(en_de),.c0(c0),.c1(c1),.data(byte_data),.symbol(symbol));
     integer f,pixels=0,frames=0,total=0,active_pixels=0,hs_pixels=0,vs_pixels=0;
-    integer n,b,bitn,rd=0;
+    integer n,b,bitn,rd=0,oct;
     reg [7:0] decoded,q;
     // Check semantic labels and live values in their new card-local positions.
     always @(negedge clk) if(!rst && warm>3) begin
@@ -63,6 +64,14 @@ module tb_video;
             $fatal(1,"Black key C#4 missing: character=%h",screen.character);
         if(screen.py==146 && screen.px==48 && screen.character!=="C")
             $fatal(1,"White C4 note label is missing");
+        if(screen.py==146 && screen.px==60 && screen.character!==8'd51+screen.display_octave)
+            $fatal(1,"First C octave digit is stale");
+        if(screen.py==146 && screen.px==508 && screen.character!==8'd52+screen.display_octave)
+            $fatal(1,"Upper C octave digit is stale");
+        if(screen.py==44 && screen.px==256 && screen.character!==8'd51+screen.display_octave)
+            $fatal(1,"Octave header is stale");
+        if(screen.py==568 && screen.px==712 && screen.character!=="6")
+            $fatal(1,"Octave shortcut footer truncated");
         if(screen.py==204 && screen.px==28 && screen.character!=="D")
             $fatal(1,"Waveform must be identified as DIGITAL WAVE");
         if(screen.py==224 && screen.px==28 && screen.character!=="I")
@@ -92,7 +101,7 @@ module tb_video;
         end
         if(expected_adc_online && !expected_debug) begin
             if(screen.py==476 && screen.px==636 && screen.character!=="9") $fatal(1,"BPM 090");
-            if(screen.py==452 && screen.px==684 && screen.character!=="4") $fatal(1,"Score length 64");
+            if(screen.py==452 && screen.px==708 && screen.character!=="2") $fatal(1,"Score length 192");
             if(screen.py==524 && screen.px==636 && screen.character!=="2") $fatal(1,"RX 012");
             if(screen.py==524 && screen.px==720 && screen.character!=="2") $fatal(1,"ERR 002");
             if(screen.py==166 && screen.px==48 && screen.color!==24'hF2BE55) $fatal(1,"White chord target border");
@@ -148,16 +157,21 @@ module tb_video;
         status[39]=0;
         wait(blank); @(negedge clk);expected_debug=0;
         capture_frame("screen.ppm");
+        for(oct=0;oct<4;oct=oct+1) begin
+            octave_select=oct;wait(blank);@(negedge clk);
+            capture_frame($sformatf("screen_octave_%0d.ppm",oct+3));
+        end
+        octave_select=1;
         // Longest offline/test labels and a non-step UART gain value.
-        status[23]=0;status[65]=0;status[26]=1;status[37]=1;
+        status[23]=0;status[50]=0;status[65]=0;status[26]=1;status[37]=1;
         status[17:16]=1;status[22:18]=15;status[203:196]=255;
         wait(blank); repeat(2) @(negedge clk);expected_adc_online=0;
         if(screen.volume_text!=="099") $fatal(1,"V4095 must display 099 percent, got %s",screen.volume_text);
         capture_frame("screen_offline.ppm");
-        if(wallpaper_changes<60) $fatal(1,"Wallpaper is missing from HDMI background");
+        if(wallpaper_changes>1) $fatal(1,"Background must be the resource-free solid color");
         if(wave_pixels<1000 || fft_pixels<1000) $fatal(1,"Waveform or FFT is missing from the default UI");
         $display("PASS: TMDS round-trip/disparity; 800x600 raster; normal/debug/offline HUD, glyph bounds and precise gain");
         $display("ALL TESTS PASSED"); $finish;
     end
-    initial begin #200000000; $fatal(1,"Video watchdog"); end
+    initial begin #350000000; $fatal(1,"Video watchdog"); end
 endmodule

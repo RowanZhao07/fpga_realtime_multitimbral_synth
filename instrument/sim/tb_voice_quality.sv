@@ -64,7 +64,7 @@ module tb_chord_audio;
     wire signed [15:0] sample;
     wire valid,clipped;
     wire [12:0] active;
-    polyphonic_engine engine(.sustain_down(1'b0),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
+    polyphonic_engine engine(.sustain_down(1'b0),.octave_select(2'd1),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .timbre(timbre),.vibrato(1'b0),.mixed(mixed),.valid(valid),.active(active));
     audio_output output_stage(.clk(clk),.rst(rst),.valid(valid),.mixed(mixed),
         .volume(13'd4096),.echo_enable(1'b0),.sample(sample),.clipped(clipped));
@@ -72,7 +72,7 @@ module tb_chord_audio;
     task frame;
         begin
             @(negedge clk);ce=1;
-            @(negedge clk);ce=0;repeat(30) @(negedge clk);
+            @(negedge clk);ce=0;wait(valid);repeat(8) @(negedge clk);
             if((^sample)===1'bx || clipped) $fatal(1,"Unknown or clipped chord audio");
         end
     endtask
@@ -98,5 +98,5 @@ module tb_chord_audio;
         end
         $fclose(f);$display("ALL TESTS PASSED");$finish;
     end
-    initial begin #1000000000;$fatal(1,"Chord capture watchdog");end
+    initial begin #(64'd8000000000);$fatal(1,"Chord capture watchdog");end
 endmodule

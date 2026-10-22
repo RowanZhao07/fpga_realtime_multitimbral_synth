@@ -7,7 +7,7 @@ module tb_remote_instrument;
     wire [83:0] uart_diagnostics;
     wire diagnostics_visible;
     wire [7:0] volume_low;
-    wire [7:0] lamps;wire signed [15:0] sample;
+    wire [12:0] lamps;wire signed [15:0] sample;
     instrument_core #(.UART_CLOCKS_PER_BIT(32)) dut(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),
         .touched(touched),.chip_online(2'b11),.pressure_online(1'b0),.pressure_mv(12'd0),
         .control_rx(rx),.control_tx(tx),.control_status(remote_status),.uart_diagnostics(uart_diagnostics),
@@ -49,11 +49,11 @@ module tb_remote_instrument;
         send_with_notice("N");send_with_notice("A0015");send_with_notice("A0100");
         send_with_notice("Z");send_with_notice("G1");frames(3);
         if(remote_status[44:37]!=0) $fatal(1,"Transport status counted as an upload error");
-        if(!status[27] || lamps!==8'h15 || remote_status[12:0]!=13'h15)
+        if(!status[27] || lamps!==13'h91 || remote_status[12:0]!=13'h15)
             $fatal(1,"Uploaded chord guide did not reach LEDs");
         if(status[7:0]!=0 || status[44:40]!=0) $fatal(1,"Score auto-played audio");
         touched=18'h15;frames(3);touched=0;frames(3);
-        if(remote_status[12:0]!=13'h100 || lamps!=0 || status[36:31]!=1)
+        if(remote_status[12:0]!=13'h100 || lamps!=13'h2 || status[36:31]!=1)
             $fatal(1,"Guide did not advance to sharp note");
         touched=18'h1000;frames(3);touched=0;frames(3);
         if(status[36:31]!=0) $fatal(1,"Sharp electrode did not complete score");

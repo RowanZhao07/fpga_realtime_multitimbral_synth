@@ -8,7 +8,8 @@ IO_LOC "mpr_b_sda" A15;
 // ADS1115: J13-15/16 (SDRAM0_D11/D10), ADDR=GND -> 0x48.
 IO_LOC "pressure_scl" A20;
 IO_LOC "pressure_sda" B20;
-// SN74HC595: J13-17/18/19/20 -> D9/D8/A12/CLK. All are 3.3V GPIO here.
+// PCB U5 -> U6 SN74HC595 chain: 16 shift bits drive 13 key LEDs.
+// J13-17/18/19/20 -> D9/D8/A12/CLK. All are 3.3V GPIO here.
 IO_LOC "led_ser" A21;
 IO_LOC "led_srclk" B21;
 IO_LOC "led_rclk" B18;

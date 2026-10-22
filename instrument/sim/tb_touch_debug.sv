@@ -3,7 +3,7 @@ module tb_touch_debug;
  GSR GSR(.GSRI(1'b1));
  reg clk=0;always #10 clk=~clk;
  reg rst=1,online=0,rx=1;reg [17:0] touched=0;
- reg [4:0] divider=0;wire ce=divider==0;
+ reg [9:0] divider=0;wire ce=divider==0;
  always @(negedge clk) divider<=divider+1'b1;
  wire sustain_on;wire [52:0] status;
  instrument_core #(.DEFAULT_SUSTAIN(1'b1),.DEFAULT_TIMBRE(2'd1),.UART_CLOCKS_PER_BIT(16)) dut(
@@ -24,7 +24,7 @@ module tb_touch_debug;
  task pedal(input [7:0] value);byte_in("H");byte_in(value);byte_in(10);tick(200);endtask
  reg [10:0] x=640;reg [9:0] y=44;
  instrument_screen #(.TOUCH_DEBUG(1'b1)) screen(.clk(clk),.rst(rst),.x(x),.y(y),
-  .de(1'b1),.hs(1'b0),.vs(1'b0),.vertical_blank(1'b1),.status(204'd0),.voice_levels(104'd0),
+  .de(1'b1),.hs(1'b0),.vs(1'b0),.vertical_blank(1'b1),.status(204'd0),.performance_info(32'd0),.voice_levels(104'd0),.octave_select(2'd1),
   .scope_ready(1'b0),.scope_data(8'd0),.visual_ready(1'b0),.visual_data(8'd0));
  initial begin
   tick(5);rst=0;frames(3);
@@ -37,7 +37,7 @@ module tb_touch_debug;
   touched=1;frames(400);
   if(dut.active[0]!==1 || dut.gates!=1)$fatal(1,"Physical touch did not trigger C4");
   touched=0;frames(7000);
-  $display("TAIL: debug=%0d normal=%0d gates=%h",dut.engine.voice_bank[0].voice.amplitude.level,reference.engine.voice_bank[0].voice.amplitude.level,dut.gates);
+  $display("TAIL: debug=%0d normal=%0d gates=%h",dut.engine.envelopes[0],reference.engine.envelopes[0],dut.gates);
   if(!dut.active[0] || reference.active!=0 || dut.gates!=0)$fatal(1,"Default sustain tail or physical release wrong");
   pedal("0");if(sustain_on)$fatal(1,"H0 cannot release debug pedal");
   frames(7000);if(dut.active!=0 || dut.monitor_sample!=0)$fatal(1,"Pedal up did not reach silence");
@@ -52,5 +52,5 @@ module tb_touch_debug;
   $display("PASS: real touch gates, default sustain, normal off, H0/H1, offline/reset, labels and C0");
   $display("ALL TESTS PASSED");$finish;
  end
- initial begin #20000000;$fatal(1,"Touch debug watchdog");end
+ initial begin #400000000;$fatal(1,"Touch debug watchdog");end
 endmodule

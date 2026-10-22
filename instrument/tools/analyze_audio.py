@@ -44,10 +44,11 @@ for n in range(4):
     values = [float(m[np.abs(f-notes[0]*h)<8].max()) for h in [1,2,3,5]]
     harmonics.append([v/values[0] for v in values])
 assert harmonics[0][1]<0.03 and harmonics[0][2]<0.03
-assert 0.28<harmonics[1][1]<0.42 and 0.10<harmonics[1][2]<0.19
-assert 0.035<harmonics[1][3]<0.085
-assert harmonics[2][1]>0.3
-assert harmonics[3][1]>0.8
+# Late-time windows now intentionally have fewer overtones. Early/late evolution
+# is verified independently in analyze_dynamic_timbre.py, not against static LUT ratios.
+assert harmonics[1][1]<0.03 and harmonics[1][2]<0.03
+assert 0.08<harmonics[2][1]<0.4
+assert harmonics[3][1]<0.03
 result = {'evidence_type':'RTL simulation, not physical audio capture',
           'nominal_sample_rate_hz':fs,'independent_voices':13,'spectral_peaks':peaks,
           'chromatic_peaks':chromatic_peaks,

@@ -9,7 +9,7 @@ module tb_sustain_audio;
  genvar v;
  generate for(v=0;v<2;v=v+1) begin: bank
   polyphonic_engine engine(.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
-   .sustain_down(v==1 ? pedal : 1'b0),.timbre(2'd1),.vibrato(1'b0),
+   .sustain_down(v==1 ? pedal : 1'b0),.timbre(2'd1),.octave_select(2'd1),.vibrato(1'b0),
    .mixed(mixed[v]),.valid(valid[v]),.active(),.voice_levels());
   audio_output output_stage(.clk(clk),.rst(rst),.valid(valid[v]),.mixed(mixed[v]),
    .volume(13'd4096),.echo_enable(1'b0),.sample(pcm[v]),.clipped(clipped[v]));
@@ -26,11 +26,11 @@ module tb_sustain_audio;
    if(n>=29297 && n<34180) gates=13'h029;
    if(n>=53711 && n<58594) gates=13'h052;
    if(n>=78125 && n<83008) gates=13'h025;
-   ce=1;@(negedge clk);ce=0;repeat(31) @(negedge clk);
+   ce=1;@(negedge clk);ce=0;wait(&valid);repeat(8) @(negedge clk);
    if(clipped) $fatal(1,"Sustain example clipped");
    $fdisplay(f,"%0d,%0d,%0d,%0d,%0d",n,pcm[0],pcm[1],pedal,gates);
   end
   $fclose(f);$display("ALL TESTS PASSED");$finish;
  end
- initial begin #100000000;$fatal(1,"Sustain audio watchdog");end
+ initial begin #2000000000;$fatal(1,"Sustain audio watchdog");end
 endmodule

@@ -17,11 +17,37 @@ SONGS = {
 
 
 def score_commands(notes):
-    if not 1 <= len(notes) <= 64:
-        raise ValueError("A score must contain 1..64 steps")
+    if not 1 <= len(notes) <= 512:
+        raise ValueError("A score must contain 1..512 steps")
     commands = ["N"]
     for index, step in enumerate(notes, 1):
         mask = 0
+        if ":" in step:
+            pitch, duration = step.upper().rsplit(":", 1)
+            if not duration.isdecimal() or not 1 <= int(duration) <= 255:
+                raise ValueError(f"Step {index}: duration must be 1..255 sixteenths")
+            pitches=[]
+            if pitch != "REST":
+                for name in pitch.split("+"):
+                    match=re.fullmatch(r"([A-G])(#?)([3-7])",name)
+                    if not match:raise ValueError(f"Step {index}: use C4:2, C4+E4+G4:4 or REST:2")
+                    letter,sharp,octave=match.groups()
+                    midi=12*(int(octave)+1)+dict(C=0,D=2,E=4,F=5,G=7,A=9,B=11)[letter]+bool(sharp)
+                    if not 48<=midi<=96 or midi in pitches:raise ValueError(f"Step {index}: invalid/duplicate pitch")
+                    pitches.append(midi)
+            offsets=[0,2,4,5,7,9,11,12,1,3,6,8,10]
+            bank=1
+            if pitches:
+                for bank in reversed(range(4)):
+                    base=48+12*bank
+                    if all(n-base in offsets for n in pitches):
+                        mask=sum(1<<offsets.index(n-base) for n in pitches)
+                        break
+                else:raise ValueError(f"Step {index}: chord spans more than one physical octave")
+            commands += [f"O{bank+3}",f"U{int(duration)}",f"A{mask:04X}"]
+            continue
+        if any(":" in n for n in notes):
+            raise ValueError("Do not mix timed absolute notes and legacy key steps")
         for note in step.upper().split("+"):
             if not re.fullmatch(r"K[0-7]|S[0-4]", note):
                 raise ValueError(f"Step {index}: invalid key {note!r}; use K0..K7 or S0..S4")
@@ -42,9 +68,13 @@ def valid_command(command):
         return int(command[1:]) <= 4096
     if re.fullmatch(r"L[0-9]{1,3}", command):
         return int(command[1:]) <= 256
+    if re.fullmatch(r"J[0-9]{1,4}", command):
+        return int(command[1:]) <= 8192
     if re.fullmatch(r"B[0-9]{1,3}", command):
         return 40 <= int(command[1:]) <= 240
-    return bool(re.fullmatch(r"A[0-9A-Fa-f]{4}", command)) and 0 < int(command[1:], 16) <= 0x1FFF
+    if re.fullmatch(r"O[3-6]", command):return True
+    if re.fullmatch(r"U[0-9]{1,3}", command):return 1<=int(command[1:])<=255
+    return bool(re.fullmatch(r"A[0-9A-Fa-f]{4}", command)) and 0 <= int(command[1:], 16) <= 0x1FFF
 
 
 def send_commands(device, commands):
@@ -89,7 +119,8 @@ def main(argv=None):
         if args.song:
             notes = SONGS[args.song]
         elif args.score:
-            notes = " ".join(line.split("#", 1)[0] for line in args.score.read_text(encoding="utf-8-sig").splitlines()).split()
+            notes = " ".join(line.split(" #",1)[0] for line in args.score.read_text(encoding="utf-8-sig").splitlines()
+                             if not line.lstrip().startswith("#")).split()
         if notes is not None:
             commands += score_commands(notes) + ["G1"]
         if not commands:

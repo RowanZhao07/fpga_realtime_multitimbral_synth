@@ -28,6 +28,9 @@ __pycache__/
 /backups/
 /tmp/
 /.local/
+# New generated image histories stay local; existing tracked references remain.
+/assets/simulation/history/
+/assets/simulation/frames/
 # Wiring drawings are local-only, including future exports.
 /hardware/
 *.drawio

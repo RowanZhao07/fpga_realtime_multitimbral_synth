@@ -12,6 +12,12 @@ spec.loader.exec_module(tool)
 
 
 class SerialControlTests(unittest.TestCase):
+    def test_pcb_thirteen_lamp_masks_and_cancel(self):
+        for command in ("J0", "J1", "J256", "J4096", "J8191", "J8192"):
+            self.assertTrue(tool.valid_command(command), command)
+        for command in ("J", "J8193", "J-1", "JFFFF", "J00000"):
+            self.assertFalse(tool.valid_command(command), command)
+
     def test_sustain_commands(self):
         for command in ("H0", "H1"):
             self.assertTrue(tool.valid_command(command))
@@ -43,10 +49,17 @@ class SerialControlTests(unittest.TestCase):
                          ["N", "A0015", "A0100", "A1080", "Z"])
 
     def test_reject_entire_invalid_score_before_transmission(self):
-        for notes in ([], ["K8"], ["K0", "S5"], ["K0"] * 65, ["K0+K0"], ["K0+"]):
+        for notes in ([], ["K8"], ["K0", "S5"], ["K0"] * 513, ["K0+K0"], ["K0+"]):
             with self.subTest(notes=notes):
                 with self.assertRaises(ValueError):
                     tool.score_commands(notes)
+
+    def test_absolute_score_rests_and_sharps(self):
+        self.assertEqual(tool.score_commands(["C3:2","C#6:1","REST:4"]),
+                         ["N","O3","U2","A0001","O6","U1","A0100","O4","U4","A0000","Z"])
+        for notes in (["C2:2"],["C4+C6:2"],["C4:0"],["C4:2","K0"],["C4+C4:2"]):
+            with self.assertRaises(ValueError):tool.score_commands(notes)
+        self.assertEqual(len(tool.score_commands(["C4:2"]*512)),1538)
 
     def test_emit_works_without_serial_device(self):
         result = subprocess.run([sys.executable, str(TOOL), "--song", "chords", "--bpm", "90", "--emit"],

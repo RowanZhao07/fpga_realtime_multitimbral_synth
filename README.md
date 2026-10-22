@@ -1,145 +1,102 @@
 # FPGA 实时多音色电子乐器
 
-Tang Mega 60K NEO（GW5AT-60B）上的纯 Verilog 电子琴，无处理器、MCU 或预录音频。
+Tang Mega 60K NEO（GW5AT-60B）上的纯 HDL 合成器，不使用处理器、MCU 或预录音源。
 
-13 声部覆盖 C4～C5 半音阶，支持四音色、ADSR、延音踏板、音量、颤音、延迟效果、公共压力控制、八键灯、蓝牙参数控制与最多 64 步和弦跟弹。HDMI 输出 800×600，常驻琴键、实时 PCM 波形、4096 点 Hann 窗 FFT 和演奏状态。
+运行版移除了壁纸 ROM，保留 800×600 HDMI 琴键、512 点波形、4096 点 Hann 窗 FFT 和 GUIDE。原始壁纸图片仍保留在 assets/wallpapers，当前工程不使用它们。
 
-本轮延音改进由 **chenxi639** 主导、Codex 协助实现与验证，修改理由及验证范围见 [延音版本提交说明](docs/sustain_release.md)。物理踏板输入适配器尚未接入；可先用串口或默认延音触摸工程试听。
+- 13 个触摸音键，四档音区 C3～C4 / C4～C5 / C5～C6 / C6～C7，默认 C4～C5。
+- 32 个独立相位、音高、音色、ADSR 状态；共享计算流水线在每个音频样本内计算全部声部。四档音区合计 49 个不同音高，最大同时发声 32 个。
+- 每次重按分配新声部，跨音区的旧延音和释音尾巴保留。满载时先找空闲，再选最轻的释放声部，最后抢占最老声部；抢占保留 8 样本短淡出。
+- 四音色：正弦、电钢琴感、合成弦乐、金属音。数学波表插值，基波与泛音层采用不同时间变化；新音锁定音色，旧尾音不被全局切换。
+- 公共压力、颤音、延迟效果、延音、13 键灯和蓝牙参数控制。混音固定增益，32 声部预留额外 6dB 余量，新增按键不会使旧音自动变小。
+- GUIDE 最多 512 步，支持时值、休止、和弦、自动切换音区。内置原创《夜航练习曲》24 小节、192 步，覆盖四档音区；曲谱只指导真人演奏，不自行发声。
 
-HDMI 以 `assets/wallpapers/1.jpg`～`8.jpg` 为全屏壁纸，约每 10 秒轮换。图片居中裁剪为 4:3，以 192×144、每图 64 色存入片上 ROM；不需要 SD 卡或外接存储。更换图片后运行 `python instrument/tools/generate_wallpapers.py`，再构建、下载。轮播间隔由 `instrument_screen.v` 的 `WALLPAPER_HOLD_FRAMES` 设置（默认 600 帧）。
+队友 **chenxi639** 的波形/琴键反馈与 `feature/sustain-pedal` 延音实现已保留；**zrb** 主导平台集成、PCB 验证及本轮需求，Codex 协助实现与验证。详见[协作与更新说明](docs/collaboration_update.md)。此前的[延音版本说明](docs/sustain_release.md) 是历史记录，声部分配与 GUIDE 以当前实现为准。实体踏板适配器尚未接入，串口 H0/H1 可控制延音。
 
-![八张壁纸与显示布局的 RTL 仿真预览](assets/simulation/wallpaper_gallery.png)
+## 构建与回归
 
-[轮播动图](assets/simulation/wallpaper_slideshow.gif) · [八声部频谱](assets/simulation/eight_voices_spectrum.png)。这些图片来自 RTL 仿真，不是实板照片；目录同时保留历史调试图。
-
-`DIGITAL WAVE / 4X` 显示送往 I²S 的数字 PCM，固定 4 倍纵向放大（约 ±8192 PCM，超出范围截顶），不是麦克风测得的声压。主音量和压力会影响波形；音箱自身的滑片位于 DAC 之后，不反馈到屏幕。`MASTER GAIN` 表示压力调制前的数字主增益，百分比向下取整。
-
-波形独立采集 512 点（10.49ms），上升过零触发、静音时超时刷新；与 FFT 分别双缓冲，在场消隐时换帧。琴键松开后的蓝色余音和底部小条来自各声部真实 ADSR，包含五个黑键；小条表示压力、主增益及回声处理前的包络，不代表音箱响度。独立波形与包络反馈方案由 chenxi639 提出，已适配当前 13 声部及壁纸界面；未接入其预留的听音算法接口。
-
-## 目录与构建
-
-```text
-assets/
-  wallpapers/           八张壁纸原图（纳入 Git）
-  simulation/           仿真图片、动图与历史图（纳入 Git）
-instrument/
-  src/                  Verilog、引脚与时序约束
-  sim/                  RTL 回归与串口工具测试
-  tools/                工具链定位、查表生成、音频/频谱分析、曲谱发送
-  config/               Gowin 构建配置
-  instrument.gprj       Gowin 工程
-  build.ps1 / build.tcl 命令行构建入口
-dist/                   正常版或触摸调试版位流（本地生成，不提交 Git）
-hardware/               接线图（仅本地保留，不提交 Git）
-.local/                 试听 WAV 等本地资料（不提交 Git）
-```
-
-已使用 Gowin V1.9.12.04 验证，在仓库根目录执行，路径按自己的安装位置填写：
+在仓库根目录执行，工具路径按本机填写：
 
 ```powershell
-$env:GOWIN_HOME = Read-Host 'Gowin IDE 目录（内含 bin）'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\instrument\build.ps1
+$env:GOWIN_HOME = Read-Host 'Gowin IDE 目录'
+powershell -NoProfile -ExecutionPolicy Bypass -File instrument/build.ps1
+
+$env:VIVADO_BIN = Read-Host 'Vivado bin 目录'
+powershell -NoProfile -ExecutionPolicy Bypass -File instrument/sim/run.ps1 -Python python
 ```
 
-构建检查新位流、setup/hold、recovery/removal 和最小脉宽；全部通过后才更新 `dist/instrument.fs` 并输出 SHA256。中间文件在 `instrument/impl/`，不纳入 Git。可用 `-GowinShell` 指定 `gw_sh.exe`，或用 `-CheckTools` 只检查工具路径。
+Python 依赖见 instrument/tools/requirements.txt。构建仅在新位流、setup/hold、recovery/removal 和最小脉宽检查通过后更新 dist/instrument.fs。下载选择 **GW5AT-60B → SRAM Program**；断电需重新下载。触摸默认延音工程仍为 instrument/instrument_touch_debug.gprj，构建脚本加 -TouchDebug。
 
-构建和测试结束后，运行 `powershell -NoProfile -ExecutionPolicy Bypass -File .\instrument\tools\clean.ps1` 清理缓存。脚本先保存仿真图片（PPM 无损转 PNG，重复像素去重）和 WAV，再删除中间文件；保留源码、`assets/`、`.local/` 和 `dist/instrument.fs`。加 `-WhatIf` 只预览。工程路径均相对仓库，外部工具位置通过参数、环境变量或 PATH 指定。
+本轮未连接实物：RTL 仿真、布局布线通过不等于已实测模拟输出。完整触键到 DAC 的方法与工具见 [延迟验收](docs/latency_measurement.md)。数字状态到 I²S 的 tb_latency 不包含 MPR121 和模拟链路，不能替代整机 ≤10ms 验收。
 
-Gowin Programmer 选择 **GW5AT-60B → SRAM Program → dist/instrument.fs**，断电后需重新下载。摄像头功能已移除；断电后拔除摄像头供电与信号线，J13-23～37 不再使用，其余接线保持。
+此次构建资源、实时预算、验证记录及位流校验值见 [升级验证](docs/upgrade_verification.md)。
 
-## 接线与控制
+## 接线
 
-所有模块共地。J13 是底板物理针号，FPGA 球号以 `instrument/src/instrument.cst` 为准。
+所有模块共地。J13 为底板物理针号，球号以 instrument/src/instrument.cst 为准；本轮没有新增硬件引脚。
 
-| 模块信号 | J13 针号 | FPGA 球号 |
+| 信号 | J13 | FPGA 球号 |
 |---|---|---|
-| MPR121 A：SCL / SDA | 1 / 2 | E14 / E13 |
-| PCM5102：BCK / LRCK / DIN | 3 / 4 / 5 | C15 / C14 / B13 |
-| MPR121 B：SCL / SDA | 13 / 14 | A16 / A15 |
-| ADS1115：SCL / SDA | 15 / 16 | A20 / B20 |
-| 74HC595：SER / SRCLK / RCLK / OE | 17 / 18 / 19 / 20 | A21 / B21 / B18 / B17 |
-| BT05：TXD → FPGA RX / RXD ← FPGA TX | 21 / 22 | C17 / D17 |
+| MPR121 A SCL / SDA | 1 / 2 | E14 / E13 |
+| PCM5102 BCK / LRCK / DIN | 3 / 4 / 5 | C15 / C14 / B13 |
+| MPR121 B SCL / SDA | 13 / 14 | A16 / A15 |
+| ADS1115 SCL / SDA | 15 / 16 | A20 / B20 |
+| 74HC595 SER / SRCLK / RCLK / OE | 17 / 18 / 19 / 20 | A21 / B21 / B18 / B17 |
+| BT05 TXD→RX / RXD←TX | 21 / 22 | C17 / D17 |
 
-- **MPR121**：两块各用独立 I²C，总线不互连；3.3V 供电，ADD 均保留接地（0x5A），IRQ 留空，使用板载上拉。任一触摸板离线会释放音符并重试。
-- **PCM5102**：现有底板 5V 供电，SCK 接地、FMT 经 1kΩ 下拉到该模块 GND、XSMT 高，模拟输出接有源音箱。FPGA 输出标准 I²S，对应 FMT 低电平；FMT 高电平会选择左对齐。其他模块须核实板载电阻／焊盘配置，不要混淆 FMT 与 XSMT。
-- **ADS1115 + FSR402B**：3.3V 供电，ADDR 接地（0x48）；`3.3V → FSR → A0 → 10kΩ → GND`，0.1µF 跨接 A0/GND。A1～A3、ALRT 留空。量程 ±4.096V，本电路输入仍限于 0～3.3V。
-- **74HC595**：16/VCC、10/SRCLR 接 3.3V，8/GND 接地；14/SER、11/SRCLK、12/RCLK、13/OE 按表接线；OE 另用 10kΩ 上拉，VCC/GND 旁接 0.1µF。QA～QH 各经独立限流电阻接 K0～K7 的 LED 正极，负极接地；保留已验证的电阻与接线，9/QH′ 留空。
-- **BT05**：现有 ZS-040 底板 VCC 接 5V、GND 共地；TXD/RXD 是 3.3V 信号，EN/STATE 留空。仅适用于现有标明 Power 3.6–6V / LEVEL 3.3V 的底板。
+- MPR121 两块独立 I²C，3.3V 供电，ADD 接地（0x5A），IRQ 留空；任何一块离线均释放所有键并重试。杜邦线必须固定。
+- ADS1115 3.3V，ADDR 接地（0x48）；3.3V → FSR → A0 → 10kΩ → GND，A0/GND 并 100nF。A1～A3 留空。
+- 现有 PCM5102 底板 5V，SCK 接地、FMT 经 1kΩ 下拉、XSMT 高，模拟输出接有源音箱；其他型号先核对模块电路。
+- 两片 74HC595 3.3V，U5 QH′ 接 U6 SER，每次发送 16 位；13 路各经 1kΩ 驱动 LED，其余 3 位为零。LED 按半音阶从低 C 到高 C 排列。
+- 已验证 BT05 ZS-040 底板 VCC 5V，TX/RX 为 3.3V，EN/STATE 留空。
 
-| 触摸板 | 电极从 0 开始依次连接 |
+| 触摸板 | 电极 0 起顺序 |
 |---|---|
-| A：0～9 | K0、S0、K1、S1、K2、K3、S2、K4、S3、K5 |
-| B：0～7 | S4、K6、K7、X0、C0、C1、C2、C3 |
+| A 0～9 | K0、S0、K1、S1、K2、K3、S2、K4、S3、K5 |
+| B 0～7 | S4、K6、K7、X0、C0、C1、C2、C3 |
 
-其余电极留空。K0～K7 对应 C4/D4/E4/F4/G4/A4/B4/C5；S0～S4 对应 C♯4/D♯4/F♯4/G♯4/A♯4。S0 是 K0/K1 之间的第一块短铜箔。
+K0～K7 为自然音，S0～S4 为五个黑键。其余电极悬空。
 
-C0 短按切换音色、长按切换延迟；C1/C2 调音量，同时长按切换跟弹；按住 C3 开启颤音，松开关闭；四个控制键同时长按切换八自然音正弦测试。X0 仅用于八灯全亮检查。
+## 演奏与 GUIDE
 
-每键有独立振荡器与包络；音色在起音时锁定，切换后松开再按生效。四档为正弦、电钢琴感（快起音、指数衰减）、合成弦乐（约 42ms 起音、约 171ms 释音）、金属音，均由数学波表合成。波表使用 8 位小数插值，余音中同音色重按保持相位连续；混音固定增益，不因新增琴键而压低已有声部。八灯也是独立静态输出；若 HDMI 琴键保持而实灯熄灭，先用 `D1` 查看 X0 是否被识别，再检查 74HC595 与各 LED 的供电、限流和回地接线。
+C0 短按换音色、长按切换延迟；C1/C2 调音量，两者同时长按切换 GUIDE；按住 C3 开颤音。四个控制键同时长按进入八自然音正弦校准，再次操作退出。
 
-单片压力传感器控制公共音量：0V 为主音量的 25%，3.072V 及以上为 100%；ADC 离线时恢复主音量。默认主音量 50%，所以压力为 0V 时，幅度是同一音符在主音量与压力增益均为最大时的 12.5%；声音偏小时先用 V4096 配合重压核查。只按压力片不发声，这不是逐键力度检测。
+按住 X0 再按 C0/C1/C2/C3，选择第 3/4/5/6 音区；一次组合只生效一次，多键歧义不选。X0 单独按住仍检查 13 灯全亮。校准模式固定 C4～C5。
 
-### 默认延音触摸调试工程（高云 IDE）
+GUIDE 开启时以当前曲谱事件的绝对音区为准，HDMI 音名同步变化；无需手动换八度。等待正确键/和弦后开始计时，经过规定时值且按键释放才进入下一步；提前松手仍等待剩余时值，按住不放不会误触发下一音区。休止符自动计时，额外按键会阻止其结束。这是可等待演奏者的节奏辅助跟弹，不是严格节拍评分器。关闭 GUIDE 恢复此前手动音区，已发声的尾音保持原音高。
 
-有原触摸输入、暂时没有踏板时，直接在高云 IDE 打开 `instrument/instrument_touch_debug.gprj`，自行执行综合、布局布线和烧录。详细步骤见 [高云 IDE 打开说明](instrument/OPEN_IN_GOWIN.md)。
+新声部保留旧音尾巴会比旧版更饱满；满 32 声部才抢占。公共压力 0V 对应主增益 25%，≥3.072V 对应 100%，ADC 离线回到主增益；它不是每键力度。正弦和弦乐可延音保持，电钢琴与金属音仍自然衰减。掉线、复位或校准模式会取消串口延音请求。
 
-默认 T1 电钢琴、延音开启、音量 50%、回声关闭，使用真实触摸输入；HDMI 显示 `SUST DEBUG`。`H0/H1` 是可选的串口释放/踩下入口，默认延音不依赖串口命令。正常版入口 `instrument/instrument.gprj` 仍默认关闭延音。
-
-调试工程使用相对路径。从 GitHub 首次下载时，先建立 `instrument/impl`，将 `instrument/config/touch_debug_process_config.json` 复制为 `instrument/impl/instrument_touch_debug_process_config.json`，再打开工程。IDE 编译后生成 `instrument/impl/pnr/instrument_touch_debug.fs`，在 Programmer 中选择该文件。完整行为说明见 [触摸调试说明](docs/touch_debug.md)。
-
-### 延音踏板试听
-
-发送 `T1`、`E0`、`H1` 后触键并松开，可听到缓慢衰减的电钢琴尾音；发送 `H0` 后，已松开的音进入原释音段，仍按住的音继续发声。电钢琴踩踏时的衰减时间约为原来的四倍。重复按同一个键可以重新起音；当前每个音高只有一个声部，同音尾音复用，不额外叠加。正弦和弦乐可保持，金属音沿用原自然衰减。踏板不会自行产生新音，也不会恢复已经进入释音的尾音。
-
-后续硬件输入接 `instrument_core.sustain_request`（与 `clk` 同域且已同步、去抖）；现有顶层将它置零，不新增引脚。硬件请求和串口请求取或，`sustain_active` 给出实际生效状态。复位、触摸离线或进入测试模式时禁用延音并清除串口请求。这里的离线指触摸系统，不是蓝牙断连；停止试听请发送 `H0`。详细方案、边界与验证见 [延音踏板报告](docs/sustain_pedal.md)。
+屏幕 DIGITAL WAVE 显示送 I²S 的数字 PCM，4 倍纵向放大，不是声压；VOICES 为实际发声声部数，琴键蓝色/小条聚合该物理键各尾音的包络。右下角保留 GUIDE/曲目/步数/BPM/状态，D1 才切换诊断页。
 
 ## 蓝牙串口与曲谱
 
-手机 Serial Bluetooth Terminal 使用已验证的 BT05 连接，文本/ASCII，每条末尾 LF 或 CRLF。FPGA UART 为 **9600 / 8N1 / 无流控**。每条等 `K` 成功回包再发下一条，`E` 表示拒绝。
+9600 / 8N1，无流控，每条 LF 或 CRLF，等 K 再发下一条；E 表示拒绝。手机可使用 Serial Bluetooth Terminal，BLE 不一定提供 COM 口。
 
 | 命令 | 功能 |
 |---|---|
-| `?` | 通信检查，RX 加 1 |
-| `T0`～`T3` | 正弦/电钢琴感/合成弦乐/金属音色 |
-| `V0`～`V4096` | 主音量（压力继续参与调节） |
-| `E0` / `E1` | 关闭/开启延迟 |
-| `H0` / `H1` | 释放/踩下延音踏板（默认释放） |
-| `G0` / `G1` | 关闭/开启跟弹，重新开启从头开始 |
-| `B40`～`B240` | 提示节拍 BPM |
-| `R` | 恢复内置 14 步《小星星》 |
-| `N`、`Axxxx`、`Z` | 开始上传、追加音符掩码、提交 |
-| `D1` / `D0` | 显示/隐藏 UART 调试信息，默认隐藏 |
-| `L0`～`L255` / `L256` | 十进制八灯掩码，保持 5 秒后自动恢复；L256 立即恢复琴键灯 |
+| ? | 通信检查 |
+| T0～T3 / V0～V4096 | 音色 / 主音量 |
+| E0/E1、H0/H1、G0/G1 | 回声、延音、GUIDE 开关 |
+| B40～B240 | BPM，改变后影响后续时值计时 |
+| R | 恢复内置 192 步《夜航》 |
+| N、Axxxx、Z | 开始上传、追加四位十六进制键位掩码、原子提交 |
+| O3～O6 | 上传时设置后续步骤的音区 |
+| U1～U255 | 上传时设置后续步骤时值，单位十六分音符；U2 是八分音符 |
+| D0/D1 | GUIDE 页 / UART 诊断页 |
+| J0～J8191 / J8192 | PCB LED 掩码测试 5 秒 / 取消 |
+| L0～L255 / L256 | 旧八白键灯掩码 / 取消 |
 
-灯故障排查可依次发送 `L8`（F4）、`L16`（G4）、`L24`（F4+G4）、`L25`（加 C4）、`L255`（全亮），每次观察后再发下一条。屏幕显示 `LED TEST`，不产生音符，触摸板离线时也可测试；命令回 K 仅证明数字命令被接受，不能证明灯已实际点亮。
+每次 N 默认音区 4、旧版不计时模式。A 的 bit0～7 对应 K0～K7，bit8～12 对应 S0～S4；设置 U 后 A0000 表示休止，未设置 U 的空音符拒绝。最多 512 步，上传错误必须重新 N，Z 成功前旧曲谱不变。自定义曲谱在复位/断电后失效。旧版非空掩码曲谱仍是按对立即推进。
 
-`Axxxx` 为四位十六进制掩码：bit0～7 是 K0～K7，bit8～12 是 S0～S4。1～64 步，不能有空音符；按齐目标且无多余音符才前进，重复音需要松手再按。BPM 控制提示闪烁，曲谱不自动发声。上传失败需从 N 重来，Z 成功后才切换；断电恢复内置曲目。
-
-```powershell
-python .\instrument\tools\serial_control.py --song chords --bpm 90 --emit
-# 有实际 SPP 或 USB-UART 数据串口时（不是 JTAG 下载口）：
-python -m pip install pyserial
-python .\instrument\tools\serial_control.py --port COM7 --song scale --bpm 100
-```
-
-将 COM7 替换为数据串口；BLE 不一定提供 COM 口。RX/ERR 是命令计数，不是蓝牙在线指示，均在 255 饱和。完整的 `TX=` 状态行静默处理。半行 1 秒超时后，先发 `!` 加换行，再发 `?` 对齐。旧页面命令 `P0/P1` 已删除，会回 E。
-
-## 回归与上板检查
+文本曲谱支持 C4:2、C#5:1、C4+E4+G4:4、REST:2；和弦必须能放在同一物理音区，工具会在发送前检查。行首 # 为注释。
 
 ```powershell
-python -m venv .local/sim-venv
-.\.local\sim-venv\Scripts\python.exe -m pip install --only-binary=Pillow -r .\instrument\tools\requirements.txt
-$env:VIVADO_BIN = Read-Host 'Vivado bin 目录'
-$env:GOWIN_HOME = Read-Host 'Gowin IDE 目录'
-powershell -NoProfile -ExecutionPolicy Bypass -File .\instrument\sim\run.ps1 -Python .\.local\sim-venv\Scripts\python.exe
+python instrument/tools/serial_control.py --score assets/scores/nocturne.txt --bpm 120 --emit
+# 有实际 SPP/USB-UART 数据串口时（不是 JTAG 下载口）：
+python instrument/tools/serial_control.py --port COM7 --score assets/scores/nocturne.txt --bpm 120
 ```
 
-壁纸的严格像素比对依赖 JPEG 解码结果。已验证 Pillow 12.0.0 官方 PyPI wheel（libjpeg-turbo 3.1.2）与当前 ROM 一致；同版本 Conda/libjpeg 9 会产生细微像素差异，因此使用上述独立环境，不需要更改系统 Python。两项整帧画面测试启用仿真优化并关闭交互调试，保留全部断言。
+失步时工具会先发送无效行清除半行，再用 ? 同步。上传不自动重发 A，避免重复追加。完整 TX= 状态行静默忽略。J1/J2/.../J4096 依次可检查 13 个 PCB 灯。
 
-回归包含 35 项 RTL 仿真、独立音频/和弦/FFT 数值比较、八张壁纸的逐像素比较和 8 项串口工具测试；新增覆盖独立波形、双时钟并发读写、13 路包络与整机显示连接。原始数据暂存 `instrument/sim/output/`；成功后图片保存到 `assets/simulation/`，WAV 保存到 `.local/simulation_audio/`。图片更新时，旧版本按内容哈希保存在 `history/` 子目录，不因清理而丢失。日志、原始数据、WAV 和缓存不纳入 Git。
-
-`sustain_comparison.wav` 为同一组电钢琴和弦的 RTL 输出对照：先关闭踏板，间隔 0.5 秒，再开启踏板，统一原始 PCM 增益、关闭回声；另有 `sustain_off.wav` 和 `sustain_on.wav`。
-
-`chords_after_four_tones.wav` 按正弦/电钢琴感/合成弦乐/金属顺序播放 C/F/G/Am 和弦，统一放大 4 倍用于试听；不是实板录音，也未与音箱校准响度。
-
-下载后检查：`TOUCH ONLINE`、`ADC OK`（D1 调试页可查 A1/B1）；触键能发声且波形/频谱变化；按压力片能调节声音；X0 八灯全亮；手机发送 `?` 只回 K。屏幕不再显示 CAM/DVP 或摄像头预览。当前精简版须按此在实板复验，软件回归不能代替上板验证。
+光电与手势本轮仅规划：[硬件准备与条件接线](docs/optical_hardware_plan.md)。不用重画现有主 PCB；先做外接验证。

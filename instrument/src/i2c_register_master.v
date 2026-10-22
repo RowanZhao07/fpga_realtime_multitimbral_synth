@@ -14,6 +14,8 @@ module i2c_register_master #(
     input wire [8*REGISTER_BYTES-1:0] address, input wire [8*WRITE_BYTES-1:0] value,
     output reg busy = 0, output reg done = 0, output reg failed = 0,
     output reg [15:0] result = 0,
+    // 0=OK, 1=NACK, 2=SCL timeout, 3=SDA stuck/bus clear, 4=other timeout.
+    output reg [3:0] error_code = 0,
     inout wire scl, inout wire sda
 );
     reg scl_low = 0, sda_low = 0;
@@ -29,8 +31,10 @@ module i2c_register_master #(
         RESTART_A=11, RESTART_B=12, RESTART_C=13,
         RX_A=14, RX_B=15, RX_C=16, RX_D=17,
         MACK_A=18, MACK_B=19, MACK_C=20, MACK_D=21,
-        STOP_A=22, STOP_B=23, STOP_C=24, COMPLETE=25;
+        STOP_A=22, STOP_B=23, STOP_C=24, COMPLETE=25,
+        CLEAR_LOW=26, CLEAR_RISE=27, CLEAR_HIGH=28, CLEAR_FALL=29;
     reg [4:0] state = IDLE;
+    reg [3:0] clear_count=0;
     reg [15:0] divider = 0;
     reg [31:0] watchdog = 0;
     reg rd = 0, second = 0;
@@ -43,12 +47,12 @@ module i2c_register_master #(
     always @(posedge clk) begin
         done <= 0;
         if (rst) begin
-            state <= IDLE; busy <= 0; failed <= 0; result <= 0;
+            state <= IDLE; busy <= 0; failed <= 0; result <= 0;error_code<=0;clear_count<=0;
             scl_low <= 0; sda_low <= 0; divider <= 0; watchdog <= 0;
         end else if (!busy) begin
             divider <= 0; watchdog <= 0;
             if (start) begin
-                busy <= 1; failed <= 0; rd <= reading;
+                busy <= 1; failed <= 0; error_code<=0;rd <= reading;
                 reg_addr <= address; reg_value <= value;
                 device <= device_address;
                 result <= 0; tx <= {device_address,1'b0}; tx_index <= 0;
@@ -58,13 +62,28 @@ module i2c_register_master #(
             // A held-low line must never leave the FPGA holding the other line.
             scl_low <= 0; sda_low <= 0; busy <= 0;
             failed <= 1; done <= 1; state <= IDLE;
+            error_code<=!scl_sync[1] ? 4'd2 : !sda_sync[1] ? 4'd3 : 4'd4;
         end else begin
             watchdog <= watchdog + 1;
             if (divider == QUARTER-1) begin
                 divider <= 0;
                 case (state)
-                    START_A: if (scl_sync[1] && sda_sync[1]) begin
-                        sda_low <= 1; state <= START_B;
+                    START_A: if (scl_sync[1]) begin
+                        if(sda_sync[1]) begin sda_low <= 1; state <= START_B;end
+                        else begin
+                            // FPGA reset/reload can interrupt a powered slave read.
+                            // UM10204 3.1.16: clock out nine bits with SDA released,
+                            // then STOP. Fail this request so its owner reinitializes.
+                            scl_low<=1;sda_low<=0;clear_count<=0;state<=CLEAR_LOW;
+                        end
+                    end
+                    CLEAR_LOW: state<=CLEAR_RISE;
+                    CLEAR_RISE: begin scl_low<=0;state<=CLEAR_HIGH;end
+                    CLEAR_HIGH: if(scl_sync[1]) state<=CLEAR_FALL;
+                    CLEAR_FALL: begin
+                        scl_low<=1;
+                        if(clear_count==8) begin failed<=1;error_code<=3;state<=STOP_A;end
+                        else begin clear_count<=clear_count+1'b1;state<=CLEAR_LOW;end
                     end
                     START_B: begin scl_low <= 1; state <= TX_A; end
                     TX_A: begin sda_low <= !tx[bit_index]; state <= TX_B; end
@@ -78,7 +97,7 @@ module i2c_register_master #(
                     ACK_A: begin sda_low <= 0; state <= ACK_B; end
                     ACK_B: begin scl_low <= 0; state <= ACK_C; end
                     ACK_C: if (scl_sync[1]) begin
-                        if (sda_sync[1]) failed <= 1;
+                        if (sda_sync[1]) begin failed <= 1;error_code<=1;end
                         state <= ACK_D;
                     end
                     ACK_D: begin
@@ -132,7 +151,7 @@ module i2c_register_master #(
                         sda_low <= 0; state <= COMPLETE;
                     end
                     COMPLETE: begin busy <= 0; done <= 1; state <= IDLE; end
-                    default: begin failed <= 1; state <= STOP_A; end
+                    default: begin failed <= 1;error_code<=4;state <= STOP_A; end
                 endcase
             end else divider <= divider+16'd1;
         end
