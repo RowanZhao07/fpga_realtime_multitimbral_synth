@@ -7,7 +7,7 @@ module tb_board_clock;
     tri1 scl, sda, scl_b, sda_b, pressure_scl, pressure_sda;
     wire bck, lrck, din;
     wire [7:0] led;
-    instrument_top dut(.control_rx(1'b1),.control_tx(),.ref_clk(clk),.mpr_scl(scl),.mpr_sda(sda),
+    instrument_top dut(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.control_rx(1'b1),.control_tx(),.ref_clk(clk),.mpr_scl(scl),.mpr_sda(sda),
         .mpr_b_scl(scl_b),.mpr_b_sda(sda_b),
         .pressure_scl(pressure_scl),.pressure_sda(pressure_sda),
         .dac_bck(bck),.dac_lrck(lrck),.dac_din(din),.led(led));

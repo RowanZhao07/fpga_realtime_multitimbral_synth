@@ -8,7 +8,7 @@ module tb_remote_instrument;
     wire diagnostics_visible;
     wire [7:0] volume_low;
     wire [12:0] lamps;wire signed [15:0] sample;
-    instrument_core #(.UART_CLOCKS_PER_BIT(32)) dut(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),
+    instrument_core #(.UART_CLOCKS_PER_BIT(32)) dut(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),
         .touched(touched),.chip_online(2'b11),.pressure_online(1'b0),.pressure_mv(12'd0),
         .control_rx(rx),.control_tx(tx),.control_status(remote_status),.uart_diagnostics(uart_diagnostics),
         .diagnostics_visible(diagnostics_visible),.volume_low(volume_low),

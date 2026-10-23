@@ -10,10 +10,10 @@ module tb_octave_audio;
     wire valid,reference_valid,clipped;
     wire [12:0] active;
     wire signed [15:0] pcm;
-    polyphonic_engine dut(.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
+    polyphonic_engine dut(.sustain_strength(5'd3),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .sustain_down(pedal),.timbre(timbre),.octave_select(octave_select),.vibrato(vibrato),
         .mixed(mixed),.valid(valid),.active(active));
-    polyphonic_engine reference(.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
+    polyphonic_engine reference(.sustain_strength(5'd3),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .sustain_down(pedal),.timbre(timbre),.octave_select(reference_octave),.vibrato(vibrato),
         .mixed(reference_mixed),.valid(reference_valid));
     audio_output output_stage(.clk(clk),.rst(rst),.valid(valid),.mixed(mixed),

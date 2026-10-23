@@ -8,7 +8,7 @@ module tb_sustain_audio;
  wire signed [15:0] pcm[0:1];
  genvar v;
  generate for(v=0;v<2;v=v+1) begin: bank
-  polyphonic_engine engine(.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
+  polyphonic_engine engine(.sustain_strength(5'd3),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
    .sustain_down(v==1 ? pedal : 1'b0),.timbre(2'd1),.octave_select(2'd1),.vibrato(1'b0),
    .mixed(mixed[v]),.valid(valid[v]),.active(),.voice_levels());
   audio_output output_stage(.clk(clk),.rst(rst),.valid(valid[v]),.mixed(mixed[v]),

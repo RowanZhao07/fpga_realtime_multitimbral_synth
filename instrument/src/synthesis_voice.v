@@ -15,7 +15,7 @@ module synthesis_voice (
     reg [1:0] preset=0;
     wire [15:0] envelope;
     assign envelope_level=envelope[15:8];
-    envelope_adsr amplitude(.sustain_down(sustain_down),.clk(clk),.rst(rst),.sample_ce(sample_ce),
+    envelope_adsr amplitude(.sustain_strength(5'd3),.sustain_down(sustain_down),.clk(clk),.rst(rst),.sample_ce(sample_ce),
         .gate(gate),.timbre(timbre),.level(envelope),.active(active));
     wire signed [15:0] waveform;
     reg read_next=0;

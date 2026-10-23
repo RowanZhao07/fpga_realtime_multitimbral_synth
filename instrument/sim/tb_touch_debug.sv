@@ -6,11 +6,11 @@ module tb_touch_debug;
  reg [9:0] divider=0;wire ce=divider==0;
  always @(negedge clk) divider<=divider+1'b1;
  wire sustain_on;wire [52:0] status;
- instrument_core #(.DEFAULT_SUSTAIN(1'b1),.DEFAULT_TIMBRE(2'd1),.UART_CLOCKS_PER_BIT(16)) dut(
+ instrument_core #(.DEFAULT_SUSTAIN(1'b1),.DEFAULT_TIMBRE(2'd1),.UART_CLOCKS_PER_BIT(16)) dut(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),
   .clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(2'b11),
   .pressure_online(1'b0),.pressure_mv(12'd0),.sustain_request(1'b0),.sustain_active(sustain_on),
   .control_rx(rx),.status(status));
- instrument_core #(.DEFAULT_TIMBRE(2'd1)) reference(
+ instrument_core #(.DEFAULT_TIMBRE(2'd1)) reference(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),
   .clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(2'b11),
   .pressure_online(1'b0),.pressure_mv(12'd0),.sustain_request(1'b0),.control_rx(1'b1));
  initial begin force dut.sample_ce=ce;force reference.sample_ce=ce;end
@@ -23,7 +23,7 @@ module tb_touch_debug;
  endtask
  task pedal(input [7:0] value);byte_in("H");byte_in(value);byte_in(10);tick(200);endtask
  reg [10:0] x=640;reg [9:0] y=44;
- instrument_screen #(.TOUCH_DEBUG(1'b1)) screen(.clk(clk),.rst(rst),.x(x),.y(y),
+ instrument_screen #(.TOUCH_DEBUG(1'b1)) screen(.sustain_info(6'd0),.clk(clk),.rst(rst),.x(x),.y(y),
   .de(1'b1),.hs(1'b0),.vs(1'b0),.vertical_blank(1'b1),.status(204'd0),.performance_info(32'd0),.voice_levels(104'd0),.octave_select(2'd1),
   .scope_ready(1'b0),.scope_data(8'd0),.visual_ready(1'b0),.visual_data(8'd0));
  initial begin

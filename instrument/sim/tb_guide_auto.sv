@@ -3,7 +3,7 @@
 module tb_guide_auto;
  reg clk=0;always #10 clk=~clk;
  reg rst=1,rx=1;reg [17:0] touched=0;wire ce;wire [1:0] octave;
- instrument_core #(.UART_CLOCKS_PER_BIT(8)) dut(.clk(clk),.rst(rst),.online(1'b1),
+ instrument_core #(.UART_CLOCKS_PER_BIT(8)) dut(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),.clk(clk),.rst(rst),.online(1'b1),
  .sustain_request(1'b1),.touched(touched),.chip_online(2'b11),.pressure_online(1'b0),.pressure_mv(12'd0),
  .control_rx(rx),.monitor_ce(ce),.octave_select(octave));
  defparam dut.guide.TICK_DENOM=32'd983040;

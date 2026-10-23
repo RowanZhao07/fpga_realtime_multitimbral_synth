@@ -13,6 +13,8 @@ Tang Mega 60K NEO（GW5AT-60B）上的纯 HDL 合成器，不使用处理器、M
 
 队友 **chenxi639** 的波形/琴键反馈与 `feature/sustain-pedal` 延音实现已保留；**zrb** 主导平台集成、PCB 验证及本轮需求，Codex 协助实现与验证。详见[协作与更新说明](docs/collaboration_update.md)。实体踏板适配器尚未接入，串口 H0/H1 可控制延音。
 
+本次新增由 **chenxi639** 主导的 EC11 五脚旋钮适配：旋转调节 **16 档尾音衰减速度**，按压切换延音开关，HDMI 显示实际状态及档位。保留最新 32 声部与 GUIDE。使用独立入口 **instrument/instrument_ec11.gprj**，默认 T1 电钢琴、延音关闭、03 档。接线、工程配置及算法范围见 [EC11 使用说明](docs/ec11_sustain.md)，检查结果见 [EC11 验证报告](docs/ec11_verification.md)。
+
 ## 构建与回归
 
 在仓库根目录执行，工具路径按本机填写：
@@ -25,7 +27,7 @@ $env:VIVADO_BIN = Read-Host 'Vivado bin 目录'
 powershell -NoProfile -ExecutionPolicy Bypass -File instrument/sim/run.ps1 -Python python
 ```
 
-Python 依赖见 instrument/tools/requirements.txt。构建仅在新位流、setup/hold、recovery/removal 和最小脉宽检查通过后更新 dist/instrument.fs。下载选择 **GW5AT-60B → SRAM Program**；断电需重新下载。触摸默认延音工程仍为 instrument/instrument_touch_debug.gprj，构建脚本加 -TouchDebug。
+Python 依赖见 instrument/tools/requirements.txt。构建仅在新位流、setup/hold、recovery/removal 和最小脉宽检查通过后更新 dist/instrument.fs。下载选择 **GW5AT-60B → SRAM Program**；断电需重新下载。触摸默认延音工程仍为 instrument/instrument_touch_debug.gprj，构建脚本加 -TouchDebug。EC11 工程对应 -Ec11 和 dist/instrument_ec11.fs，两个选项互斥；本轮仅交付源码，没有生成 EC11 位流。
 
 本轮未连接实物：RTL 仿真、布局布线通过不等于已实测模拟输出。完整触键到 DAC 的方法与工具见 [延迟验收](docs/latency_measurement.md)。数字状态到 I²S 的 tb_latency 不包含 MPR121 和模拟链路，不能替代整机 ≤10ms 验收。
 
@@ -33,7 +35,7 @@ Python 依赖见 instrument/tools/requirements.txt。构建仅在新位流、set
 
 ## 接线
 
-所有模块共地。J13 为底板物理针号，球号以 instrument/src/instrument.cst 为准；本轮没有新增硬件引脚。
+所有模块共地。J13 为底板物理针号，球号以 instrument/src/instrument.cst 为准；EC11 新增 A13/A14/C13 三根输入，接线细节见专门说明，不改变下表原有连接。
 
 | 信号 | J13 | FPGA 球号 |
 |---|---|---|

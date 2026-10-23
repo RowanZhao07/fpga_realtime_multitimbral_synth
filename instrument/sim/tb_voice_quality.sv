@@ -64,7 +64,7 @@ module tb_chord_audio;
     wire signed [15:0] sample;
     wire valid,clipped;
     wire [12:0] active;
-    polyphonic_engine engine(.sustain_down(1'b0),.octave_select(2'd1),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
+    polyphonic_engine engine(.sustain_strength(5'd3),.sustain_down(1'b0),.octave_select(2'd1),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .timbre(timbre),.vibrato(1'b0),.mixed(mixed),.valid(valid),.active(active));
     audio_output output_stage(.clk(clk),.rst(rst),.valid(valid),.mixed(mixed),
         .volume(13'd4096),.echo_enable(1'b0),.sample(sample),.clipped(clipped));

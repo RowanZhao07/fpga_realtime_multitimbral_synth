@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // 32 independent note states rendered through one shared mathematical wavetable.
-module polyphonic_engine (
+module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0)(
+    input wire [4:0] sustain_strength,
     input wire sustain_down,clk,rst,sample_ce,
     input wire [12:0] gates,
     input wire [1:0] timbre,octave_select,
@@ -24,7 +25,7 @@ module polyphonic_engine (
     reg envelope_tick=0;
     genvar v;
     generate for(v=0;v<32;v=v+1) begin: voice_bank
-        envelope_adsr amplitude(.clk(clk),.rst(rst || clear_voice[v]),.sample_ce(envelope_tick),
+        envelope_adsr #(.VARIABLE_SUSTAIN(VARIABLE_SUSTAIN)) amplitude(.sustain_strength(sustain_strength),.clk(clk),.rst(rst || clear_voice[v]),.sample_ce(envelope_tick),
             .gate(held[v]),.sustain_down(sustain_down),.timbre(preset[v]),
             .level(envelopes[v]),.active(sounding[v]));
     end endgenerate

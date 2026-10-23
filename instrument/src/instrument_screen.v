@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // Streaming raster renderer: no external memory or processor.
-module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAPER_HOLD_FRAMES=600)(
+module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAPER_HOLD_FRAMES=600)(
+    input wire [5:0] sustain_info,
     input wire clk,rst,input wire [10:0] x,input wire [9:0] y,
     input wire de,hs,vs,vertical_blank,input wire [203:0] status,
     input wire [103:0] voice_levels,
@@ -20,6 +21,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
     wire [23:0] wallpaper_rgb=24'h0B1220;
     wire [2:0] wallpaper_index=0;
     reg [203:0] display_status=0;
+    reg [5:0] display_sustain=0;
     reg [31:0] display_performance=0;
     reg [103:0] display_levels=0;
     reg [1:0] display_octave=2'd1;
@@ -195,7 +197,9 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
             label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "WAIT NOTE ") : "LIVE INPUT",24'h9CAEC9);
             label(x,y,576,524,13,{"RX ",rx_text," ER ",error_text},24'h9CAEC9);
         end
-        if(TOUCH_DEBUG)
+        if(ENABLE_EC11)
+            label(x,y,28,568,40,{"EC11 SUST ",display_sustain[5] ? "ON " : "OFF"," L",decimal2({27'd0,display_sustain[4:0]}),"/16  TURN / PUSH TOGGLE"},24'hCAD4E6);
+        else if(TOUCH_DEBUG)
             label(x,y,28,568,36,"DEFAULT SUSTAIN  UART H0 OFF / H1 ON",24'hCAD4E6);
         else label(x,y,28,568,58,"C0 TONE/ECHO C1/2 GAIN C3 VIB C1+C2 GUIDE X0+C0..3 OCT3..6",24'hCAD4E6);
     end
@@ -323,7 +327,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
         label_length<=text_length;label_line<=text_line;label_ink<=text_ink;
         text_pixel<=next_text_pixel;character<=next_character;glyph_ink<=label_ink;
         if(rst) begin
-            display_status<=0;display_levels<=0;rgb<=0;out_de<=0;out_hs<=0;out_vs<=0;
+            display_status<=0;display_sustain<=0;display_levels<=0;rgb<=0;out_de<=0;out_hs<=0;out_vs<=0;
             display_octave<=2'd1;display_performance<=0;
             scope_plot<=0;previous_scope<=0;scope_ready0<=0;scope_plot_ready<=0;
             de0<=0;de_delay<=0;hs0<=0;hs_delay<=0;vs0<=0;vs_delay<=0;
@@ -334,7 +338,7 @@ module instrument_screen #(parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAP
         end else begin
             if(de_delay && px>=28 && px<540 && py>=244 && py<=372) previous_scope<=scope_plot;
             if(vertical_blank) begin
-                display_status<=status;
+                display_status<=status;display_sustain<=sustain_info;
                 display_levels<=voice_levels;
                 display_octave<=octave_select;display_performance<=performance_info;
                 pressure_text<={digit(status[64:53]/1000),".",decimal3(status[64:53]%1000)," V"};

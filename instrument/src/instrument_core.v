@@ -1,6 +1,11 @@
 `timescale 1ns/1ps
 module instrument_core #(
     parameter ENABLE_ECHO=1'b0,
+    parameter ENABLE_EC11=1'b0,
+    parameter integer EC11_FILTER_CLOCKS=50000,
+    parameter integer EC11_TRANSITIONS_PER_STEP=2,
+    parameter EC11_REVERSE=1'b0,
+    parameter integer EC11_BUTTON_CLOCKS=500000,
     parameter DEFAULT_SUSTAIN=1'b0,
     parameter [1:0] DEFAULT_TIMBRE=2'd0,
     parameter integer UART_CLOCKS_PER_BIT=5208,
@@ -8,6 +13,8 @@ module instrument_core #(
 )(
     // Future pedal adapter supplies a synchronized, debounced level in clk domain.
     input wire sustain_request,
+    input wire encoder_a,encoder_b,encoder_sw_n,
+    output wire [5:0] sustain_info,
     output wire sustain_active,
     input wire clk, rst, online,
     input wire [17:0] touched,
@@ -103,13 +110,27 @@ module instrument_core #(
         if(audio_reset || !online || spectrum_mode) remote_sustain<=DEFAULT_SUSTAIN;
         else if(command_valid && command=="H") remote_sustain<=command_value[0];
     end
+    wire encoder_enabled;
+    wire [4:0] encoder_strength;
+    generate if(ENABLE_EC11) begin: ec11_control
+        ec11_sustain #(.FILTER_CLOCKS(EC11_FILTER_CLOCKS),.BUTTON_CLOCKS(EC11_BUTTON_CLOCKS),
+            .TRANSITIONS_PER_STEP(EC11_TRANSITIONS_PER_STEP),.REVERSE(EC11_REVERSE)) knob(
+            .clk(clk),.rst(audio_reset || !online || spectrum_mode),
+            .a(encoder_a),.b(encoder_b),.sw_n(encoder_sw_n),
+            .set_valid(command_valid && command=="H"),.set_enabled(command_value[0]),
+            .enabled(encoder_enabled),.strength(encoder_strength));
+    end else begin: no_ec11
+        assign encoder_enabled=1'b0;
+        assign encoder_strength=5'd3;
+    end endgenerate
+    assign sustain_info={sustain_active,encoder_strength};
     assign sustain_active=!audio_reset && online && !spectrum_mode &&
-        (sustain_request || remote_sustain);
+        (sustain_request || (ENABLE_EC11 ? encoder_enabled : remote_sustain));
     performance_control #(.DEFAULT_TIMBRE(DEFAULT_TIMBRE)) controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),
         .command_valid(command_valid),.command(command),.value(command_value),
         .online(online),.touched(touched),.gates(gates),.timbre(timbre),
         .volume(volume),.octave_select(selected_octave),.vibrato(vibrato),.spectrum_mode(spectrum_mode),.echo_enabled(echo_enabled),.guide_enabled(guide_enabled));
-    polyphonic_engine engine(.sustain_down(sustain_active),.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
+    polyphonic_engine #(.VARIABLE_SUSTAIN(ENABLE_EC11)) engine(.sustain_strength(encoder_strength),.sustain_down(sustain_active),.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
         .timbre(spectrum_mode ? 2'b0 : timbre),.octave_select(octave_select),.vibrato(vibrato),
         .mixed(mixed),.valid(valid),.active(active),.voice_levels(voice_levels),.voice_count(voice_count),.overrun(engine_overrun));
     audio_output output_stage(.clk(clk),.rst(audio_reset),.valid(valid),.mixed(mixed),

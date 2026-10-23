@@ -3,7 +3,7 @@ module tb_sustain_control;
  reg clk=0;always #10 clk=~clk;
  reg rst=1,online=1,request=0,rx=1;reg [17:0] touched=0;
  wire sustained;
- instrument_core #(.UART_CLOCKS_PER_BIT(16)) dut(.clk(clk),.rst(rst),.online(online),
+ instrument_core #(.UART_CLOCKS_PER_BIT(16)) dut(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),.clk(clk),.rst(rst),.online(online),
   .sustain_request(request),.sustain_active(sustained),.touched(touched),
   .chip_online(2'b11),.pressure_online(1'b0),.pressure_mv(12'd0),.control_rx(rx));
  task tick(input integer n);repeat(n) @(negedge clk);endtask

@@ -2,6 +2,8 @@
 
 本目录的调试工程入口：**instrument_touch_debug.gprj**。
 
+**使用 EC11 旋钮时请改开 instrument_ec11.gprj**，先将 config/ec11_process_config.json 复制到本地 impl/instrument_ec11_process_config.json。该工程默认关闭延音，旋转调节 16 档、按压切换开关；完整步骤及五脚接线见 [EC11 说明](../docs/ec11_sustain.md)。下面的默认开启步骤专用于没有旋钮的触摸调试工程。
+
 ## 直接打开与编译
 
 1. 在高云 IDE 1.9.12.04 中选择 File → Open Project，打开本目录下的 `instrument_touch_debug.gprj`。请选这个调试工程；`instrument.gprj` 是正常版本入口，默认延音关闭。

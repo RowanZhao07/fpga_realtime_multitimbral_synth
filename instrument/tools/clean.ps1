@@ -3,11 +3,11 @@
 param([string]$Python='python')
 $ErrorActionPreference='Stop'
 $repoRoot=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
-$releases=@('dist/instrument.fs','dist/instrument_touch_debug.fs' |
+$releases=@('dist/instrument.fs','dist/instrument_touch_debug.fs','dist/instrument_ec11.fs' |
     ForEach-Object { Join-Path $repoRoot $_ } |
     Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
 if($releases.Count -eq 0) {
-    throw 'Build a normal or touch-debug release in dist before cleaning intermediates.'
+    throw 'Build a normal, touch-debug or EC11 release in dist before cleaning intermediates.'
 }
 $releaseHashes=@{}
 foreach($release in $releases) {

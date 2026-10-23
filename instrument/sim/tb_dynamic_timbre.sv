@@ -3,7 +3,7 @@ module tb_dynamic_timbre;
  reg clk=0;always #10 clk=~clk;
  reg rst=1,ce=0;reg [12:0] gates=0;reg [1:0] tone=0;
  wire signed [18:0] mixed;wire valid;wire [5:0] count;wire overrun;
- polyphonic_engine dut(.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),.sustain_down(1'b0),
+ polyphonic_engine dut(.sustain_strength(5'd3),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),.sustain_down(1'b0),
  .timbre(tone),.octave_select(2'd1),.vibrato(1'b0),.mixed(mixed),.valid(valid),.voice_count(count),.overrun(overrun));
  integer f,t,n;
  task frame;

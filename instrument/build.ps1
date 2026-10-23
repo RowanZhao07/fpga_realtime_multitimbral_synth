@@ -1,11 +1,12 @@
-param([string]$GowinShell, [switch]$CheckTools, [switch]$TouchDebug)
+param([string]$GowinShell, [switch]$CheckTools, [switch]$TouchDebug, [switch]$Ec11)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'tools/toolchain.ps1')
 $GowinShell = Resolve-GowinShell $GowinShell
 if ($CheckTools) { Write-Output "Gowin shell: $GowinShell"; return }
-$buildBase = if($TouchDebug) { 'instrument_touch_debug' } else { 'instrument' }
+if($TouchDebug -and $Ec11) { throw 'Choose either -TouchDebug or -Ec11.' }
+$buildBase = if($Ec11) { 'instrument_ec11' } elseif($TouchDebug) { 'instrument_touch_debug' } else { 'instrument' }
 $previousBuildProfile = $env:INSTRUMENT_BUILD_PROFILE
-$env:INSTRUMENT_BUILD_PROFILE = if($TouchDebug) { 'touch_debug' } else { 'normal' }
+$env:INSTRUMENT_BUILD_PROFILE = if($Ec11) { 'ec11' } elseif($TouchDebug) { 'touch_debug' } else { 'normal' }
 Push-Location $PSScriptRoot
 try {
     if(!(Test-Path $GowinShell)) { throw "Gowin shell not found: $GowinShell" }

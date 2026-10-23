@@ -13,16 +13,17 @@ if ($CheckTools) { Write-Output "XSim: $xsim`nGowin library: $GowinSimLib`nPytho
 Push-Location $PSScriptRoot
 try {
     New-Item -ItemType Directory -Force (Join-Path $PSScriptRoot 'output') | Out-Null
-    $sources=Get-ChildItem ../src/*.v | ForEach-Object FullName
+    # Relative names avoid cmd.exe's 8191-character limit in Xilinx .bat launchers.
+    $sources=Get-ChildItem ../src/*.v | ForEach-Object { Join-Path '../src' $_.Name }
     if(!(Test-Path $GowinSimLib)) { throw "Gowin GW5A simulation library not found: $GowinSimLib" }
     # Keep the vendor .v library in Verilog mode: XSim 2025.1 --sv silently
     # zero-initializes pROMX9.ram_MEM despite nonzero INIT_RAM parameters.
     & $xvlog $GowinSimLib
     if($LASTEXITCODE) { throw 'Gowin simulation library compilation failed' }
-    $benches=Get-ChildItem tb*.sv | ForEach-Object FullName
+    $benches=Get-ChildItem tb*.sv | ForEach-Object Name
     & $xvlog --sv @sources @benches
     if($LASTEXITCODE) { throw 'RTL/test compilation failed' }
-    $tests=@('tb_octave_controls','tb_octave_audio','tb_i2c_recovery','tb_touch_debug','tb_sustain_envelope','tb_sustain_control','tb_sustain_audio','tb_waveform','tb_scope_link','tb_screen_feedback','tb_voice_feedback','tb_top_integration','tb_controls','tb_echo','tb_synthesis','tb_voice_quality','tb_timbre_profiles','tb_chord_audio','tb_i2s_audio','tb_touch_link','tb_pressure_link','tb_pressure_audio','tb_hc595','tb_key_lights','tb_lamp_diagnostics','tb_board_clock','tb_spectrum','tb_video','tb_visual_link','tb_serial_video','tb_latency','tb_uart_control','tb_uart_diagnostics','tb_uart_tx_notice','tb_score_upload','tb_remote_instrument','tb_tempo','tb_voice_allocator','tb_guide_timing','tb_dynamic_timbre','tb_guide_auto')
+    $tests=@('tb_ec11_sustain','tb_ec11_allocator','tb_ec11_top','tb_variable_sustain','tb_ec11_core','tb_octave_controls','tb_octave_audio','tb_i2c_recovery','tb_touch_debug','tb_sustain_envelope','tb_sustain_control','tb_sustain_audio','tb_waveform','tb_scope_link','tb_screen_feedback','tb_voice_feedback','tb_top_integration','tb_controls','tb_echo','tb_synthesis','tb_voice_quality','tb_timbre_profiles','tb_chord_audio','tb_i2s_audio','tb_touch_link','tb_pressure_link','tb_pressure_audio','tb_hc595','tb_key_lights','tb_lamp_diagnostics','tb_board_clock','tb_spectrum','tb_video','tb_visual_link','tb_serial_video','tb_latency','tb_uart_control','tb_uart_diagnostics','tb_uart_tx_notice','tb_score_upload','tb_remote_instrument','tb_tempo','tb_voice_allocator','tb_guide_timing','tb_dynamic_timbre','tb_guide_auto')
     if($Only){ $tests=$Only.Split(',') }
     foreach($test in $tests) {
         # Full-frame raster tests need no interactive HDL debugging. Keep all

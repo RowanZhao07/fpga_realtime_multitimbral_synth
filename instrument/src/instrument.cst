@@ -92,3 +92,11 @@ INS_LOC "transmitter/lanes[3].reset_pipe_0_s1" R4C126;
 INS_LOC "transmitter/lanes[3].reset_pipe_1_s1" R4C126;
 INS_LOC "transmitter/lanes[3].reset_pipe_2_s1" R4C126;
 INS_LOC "transmitter/lanes[3].reset_gate" R4C126;
+
+// SDRAM0 D7/D6/D5, unused by the instrument; Sipeed sdram_neo reference.
+IO_LOC "encoder_a" A13;
+IO_LOC "encoder_b" A14;
+IO_LOC "encoder_sw_n" C13;
+IO_PORT "encoder_a" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
+IO_PORT "encoder_b" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
+IO_PORT "encoder_sw_n" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;

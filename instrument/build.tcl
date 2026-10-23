@@ -5,6 +5,10 @@ if {[info exists ::env(INSTRUMENT_BUILD_PROFILE)] && $::env(INSTRUMENT_BUILD_PRO
     set build_base instrument_touch_debug
     set config_file touch_debug_process_config.json
 }
+if {[info exists ::env(INSTRUMENT_BUILD_PROFILE)] && $::env(INSTRUMENT_BUILD_PROFILE) eq "ec11"} {
+    set build_base instrument_ec11
+    set config_file ec11_process_config.json
+}
 file mkdir [file join $root impl]
 file copy -force [file join $root config $config_file] [file join $root impl ${build_base}_process_config.json]
 open_project [file join $root ${build_base}.gprj]

@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
-module tb_voice_allocator;
+module tb_voice_allocator #(parameter VARIABLE_SUSTAIN=1'b0);
  reg clk=0;always #10 clk=~clk;
  reg rst=1,ce=0,pedal=1;reg [12:0] gates=0;reg [1:0] octave=0;
  wire [5:0] count;wire overrun,valid;wire signed [18:0] mixed;
- polyphonic_engine dut(.clk(clk),.rst(rst),.sample_ce(ce),.sustain_down(pedal),
+ polyphonic_engine #(.VARIABLE_SUSTAIN(VARIABLE_SUSTAIN)) dut(.sustain_strength(5'd16),.clk(clk),.rst(rst),.sample_ce(ce),.sustain_down(pedal),
  .gates(gates),.octave_select(octave),.timbre(2'd0),.vibrato(1'b0),
  .mixed(mixed),.valid(valid),.voice_count(count),.overrun(overrun));
  integer frames=0,cycles,k,f,max_cycles=0;reg [31:0] c3_phase;

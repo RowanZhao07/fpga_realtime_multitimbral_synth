@@ -1,11 +1,21 @@
 `timescale 1ns/1ps
 module instrument_top #(
 `ifdef INSTRUMENT_TOUCH_DEBUG
-    parameter TOUCH_DEBUG=1'b1
+    parameter TOUCH_DEBUG=1'b1,
 `else
-    parameter TOUCH_DEBUG=1'b0
+    parameter TOUCH_DEBUG=1'b0,
 `endif
+`ifdef INSTRUMENT_EC11
+    parameter ENABLE_EC11=1'b1,
+`else
+    parameter ENABLE_EC11=1'b0,
+`endif
+    parameter integer EC11_FILTER_CLOCKS=50000,
+    parameter integer EC11_BUTTON_CLOCKS=500000,
+    parameter integer EC11_TRANSITIONS_PER_STEP=2,
+    parameter EC11_REVERSE=1'b0
 )(
+    input wire encoder_a,encoder_b,encoder_sw_n,
     input wire ref_clk, // On-board 50 MHz crystal, V22.
     inout wire mpr_scl, mpr_sda, mpr_b_scl, mpr_b_sda,
     inout wire pressure_scl, pressure_sda,
@@ -48,8 +58,12 @@ module instrument_top #(
     wire monitor_ce;
     wire [103:0] voice_levels,pixel_levels;
     wire [12:0] key_lights;
-    instrument_core #(.DEFAULT_SUSTAIN(TOUCH_DEBUG),
-        .DEFAULT_TIMBRE(TOUCH_DEBUG ? 2'd1 : 2'd0)) core(.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
+    wire [5:0] sustain_info,pixel_sustain;
+    instrument_core #(.ENABLE_EC11(ENABLE_EC11),
+        .EC11_FILTER_CLOCKS(EC11_FILTER_CLOCKS),.EC11_BUTTON_CLOCKS(EC11_BUTTON_CLOCKS),
+        .EC11_TRANSITIONS_PER_STEP(EC11_TRANSITIONS_PER_STEP),.EC11_REVERSE(EC11_REVERSE),.DEFAULT_SUSTAIN(TOUCH_DEBUG),
+        .DEFAULT_TIMBRE((TOUCH_DEBUG || ENABLE_EC11) ? 2'd1 : 2'd0)) core(.encoder_a(encoder_a),.encoder_b(encoder_b),.encoder_sw_n(encoder_sw_n),
+        .sustain_info(sustain_info),.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
         .pressure_online(pressure_online),.pressure_mv(pressure_mv),
         .control_rx(control_rx),.control_tx(control_tx),.control_status(control_status),.performance_info(performance_info),.uart_diagnostics(uart_diagnostics),
         .diagnostics_visible(diagnostics_visible),
@@ -74,8 +88,8 @@ module instrument_top #(
         else analyser_release<={analyser_release[1:0],1'b1};
     end
     wire analyser_rst=rst || !analyser_release[2];
-    status_mailbox #(.WIDTH(342)) mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data({performance_info,octave_select,voice_levels,status}),
-        .dst_clk(pixel_clk),.dst_rst(video_rst),.dst_data({pixel_performance,pixel_octave,pixel_levels,pixel_status}));
+    status_mailbox #(.WIDTH(348)) mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data({sustain_info,performance_info,octave_select,voice_levels,status}),
+        .dst_clk(pixel_clk),.dst_rst(video_rst),.dst_data({pixel_sustain,pixel_performance,pixel_octave,pixel_levels,pixel_status}));
     wire [10:0] x; wire [9:0] y;
     wire de,hs,vs,blank;
     video_timing timing(.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),.vertical_blank(blank));
@@ -101,7 +115,7 @@ module instrument_top #(
         .frame_done(scope_done),.frame_ack(scope_ack),.pixel_clk(pixel_clk),.pixel_rst(video_rst),
         .vertical_blank(blank),.read_address(scope_read_address),.read_value(scope_read_data),.ready(scope_ready));
     wire [23:0] rgb; wire pixel_de,pixel_hs,pixel_vs;
-    instrument_screen #(.TOUCH_DEBUG(TOUCH_DEBUG)) screen(.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
+    instrument_screen #(.ENABLE_EC11(ENABLE_EC11),.TOUCH_DEBUG(TOUCH_DEBUG)) screen(.sustain_info(pixel_sustain),.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
         .vertical_blank(blank),.status(pixel_status),.performance_info(pixel_performance),.voice_levels(pixel_levels),.octave_select(pixel_octave),
         .scope_ready(scope_ready),.scope_data(scope_read_data),.scope_address(scope_read_address),
         .visual_ready(visual_ready),.visual_data(visual_read_data),
