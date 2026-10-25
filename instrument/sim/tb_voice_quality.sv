@@ -67,7 +67,7 @@ module tb_chord_audio;
     polyphonic_engine engine(.sustain_strength(5'd3),.sustain_down(1'b0),.octave_select(2'd1),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
         .timbre(timbre),.vibrato(1'b0),.mixed(mixed),.valid(valid),.active(active));
     audio_output output_stage(.clk(clk),.rst(rst),.valid(valid),.mixed(mixed),
-        .volume(13'd4096),.echo_enable(1'b0),.sample(sample),.clipped(clipped));
+        .volume(13'd4096),.calibration(1'b0),.echo_enable(1'b0),.sample(sample),.clipped(clipped));
     integer f,tone,n;
     task frame;
         begin

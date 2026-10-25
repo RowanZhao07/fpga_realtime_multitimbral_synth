@@ -18,10 +18,10 @@ module tb_score_upload;
     task press(input [12:0] m);gates=m;repeat(4) @(negedge clk);endtask
     initial begin
         repeat(5) @(negedge clk);rst=0;repeat(4) @(negedge clk);
-        if(mask!==1 || length!=192 || custom) $fatal(1,"Default score mask=%h length=%d custom=%b word=%h",mask,length,custom,dut.event_word);
+        if(mask!==2 || length!=76 || custom) $fatal(1,"Default score mask=%h length=%d custom=%b word=%h",mask,length,custom,dut.event_word);
         send("Z",0,0);send("N",0);send("Z",0,0);send("N",0);
         send("A",16'h0015);send("A",16'h0100);send("A",16'h0100);
-        if(mask!=1 || custom) $fatal(1,"Incomplete upload altered live score");
+        if(mask!=2 || custom) $fatal(1,"Incomplete upload altered live score");
         send("Z",0);
         if(mask!==13'h15 || length!=3 || !custom || position!=0) $fatal(1,"Atomic score commit");
         press(1);press(5);if(position!=0) $fatal(1,"Partial chord advanced");
@@ -42,7 +42,7 @@ module tb_score_upload;
         send("N",0);
         for(integer n=0;n<512;n=n+1) send("A",16'h80);
         send("Z",0);if(length!=512 || mask!=13'h80) $fatal(1,"512-step score boundary");
-        send("R",0);if(custom || length!=192 || mask!=1) $fatal(1,"Restore built-in score");
+        send("R",0);if(custom || length!=76 || mask!=2) $fatal(1,"Restore built-in score");
         $display("ALL TESTS PASSED");$finish;
     end
     initial begin #1000000;$fatal(1,"Score watchdog");end

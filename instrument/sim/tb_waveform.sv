@@ -23,14 +23,14 @@ module tb_waveform;
  repeat(12) tick(32767);if(writes!=512) $fatal(1,"Writes while waiting for ownership");
  acknowledge;writes=0;
  tick(-32768);if(writes!=0) $fatal(1,"Negative sample falsely triggered");
- tick(64);if(writes!=1 || captured[0]!==8'd1) $fatal(1,"Rising crossing trigger");
+ tick(256);if(writes!=1 || captured[0]!==8'd1) $fatal(1,"Rising crossing trigger");
  for(i=1;i<512;i=i+1) tick(i[0] ? 32767 : -32768);
  if(!done || writes!=512) $fatal(1,"Triggered snapshot incomplete");
  for(i=1;i<512;i=i+1) if(captured[i] !== (i[0] ? 8'h7f : 8'h80)) $fatal(1,"Signed clipping");
  acknowledge;writes=0;
  // DC must still refresh without a crossing. Verify fixed gain, not AGC.
  repeat(4) tick(4096);repeat(511) tick(4096);
- for(i=0;i<512;i=i+1) if(captured[i]!==8'd64) $fatal(1,"4x scale changed");
+ for(i=0;i<512;i=i+1) if(captured[i]!==8'd16) $fatal(1,"Full-scale calibration changed");
  rst=1;@(negedge clk);if(done || we) $fatal(1,"Reset publication");rst=0;writes=0;
  repeat(515) tick(0);if(!done || writes!=512) $fatal(1,"Reset restart");
  $display("PASS: rising-zero trigger, silence timeout, 512 ordered signed samples, clipping, ownership pause, reset");

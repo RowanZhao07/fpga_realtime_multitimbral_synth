@@ -38,7 +38,7 @@ module audio_spectrum #(parameter ENABLE_SCOPE=1'b1)(input wire clk,rst,sample_c
     wire [15:0] abs_r=read_real[15] ? -read_real : read_real;
     wire [15:0] abs_i=read_imag[15] ? -read_imag : read_imag;
     wire [16:0] magnitude={1'b0,abs_r}+{1'b0,abs_i};
-    wire signed [15:0] scope_scaled=input_sample>>>6;
+    wire signed [15:0] scope_scaled=input_sample>>>8;
     function [11:0] reverse_bits;
         input [11:0] x; integer k;
         begin for(k=0;k<12;k=k+1) reverse_bits[k]=x[11-k]; end
@@ -78,7 +78,7 @@ module audio_spectrum #(parameter ENABLE_SCOPE=1'b1)(input wire clk,rst,sample_c
         CAP_WRITE: begin
             if(ENABLE_SCOPE && capture_index<512) begin
                 write_enable<=1; write_address<={1'b0,capture_index[8:0]};
-                // Fixed 4x display zoom: +/-8192 PCM spans the scope; the
+                // Full PCM16 scale: +/-32768 spans the scope; the
                 // renderer maps two stored units to one vertical pixel.
                 if(scope_scaled>127) write_value<=127;
                 else if(scope_scaled< -128) write_value<=8'h80;

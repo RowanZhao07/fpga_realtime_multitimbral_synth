@@ -33,6 +33,7 @@ module tb_remote_instrument;
     initial begin
         repeat(5) @(negedge clk);rst=0;
         if(diagnostics_visible!==0) $fatal(1,"Default instrument display must be clean");
+        if(dut.bpm!=93 || dut.guide_length!=76) $fatal(1,"Built-in song metadata at startup");
         send("T2");if(status[17:16]!=2) $fatal(1,"UART did not change real timbre");
         if(uart_diagnostics!=={8'd3,8'd0,4'd3,64'h54320A0000000000})
             $fatal(1,"Actual UART evidence did not reach the instrument diagnostics output");
@@ -63,6 +64,9 @@ module tb_remote_instrument;
         if(peak<100) $fatal(1,"Remote control broke live audio");
         send("V0");frames(2500);
         repeat(100) begin frames(1);if(sample!==0) $fatal(1,"Remote mute did not reach audio output");end
+        send("R");frames(3);
+        if(dut.bpm!=93 || dut.guide_length!=76 || dut.guide_mask!=2)
+            $fatal(1,"R must restore Yu Jian, D5 pickup and 93 BPM");
         online=0;send("G1");send("V2048");frames(3);
         if(lamps!=0 || status[7:0]!=0) $fatal(1,"Remote commands bypassed touch-offline gating");
         $display("ALL TESTS PASSED");$finish;

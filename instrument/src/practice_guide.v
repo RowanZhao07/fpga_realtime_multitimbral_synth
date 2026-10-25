@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 // 512 events, double-buffered upload. A step never generates note gates.
-// Timed events wait for the player, then enforce score duration and release.
+// Built-in melody advances on note-on and ends once. Uploaded timed events
+// retain their explicit duration/release semantics and looping behavior.
 // Word: timed[23], sixteenth-note duration[22:15], octave bank[14:13], keys[12:0].
 module practice_guide #(
     parameter [31:0] TICK_DENOM=32'd3000000000
@@ -17,7 +18,8 @@ module practice_guide #(
     output reg correct=0,
     output wire [1:0] octave,
     output wire rest,
-    output reg playing=0
+    output reg playing=0,
+    output reg finished=0
 );
     reg [23:0] score_ram[0:1023];
     reg active_bank=0,uploading=0,poisoned=0;
@@ -31,13 +33,20 @@ module practice_guide #(
     reg [1:0] fetch_wait=2;
     reg [23:0] ram_event=0;
     wire [23:0] rom_event;
-    guide_score_rom built_in(.address(position),.event_word(rom_event));
+    wire [9:0] rom_length;
+    guide_score_rom built_in(.address(position),.event_word(rom_event),.length(rom_length));
     wire [23:0] event_word=custom ? ram_event : rom_event;
-    assign target_mask=event_word[12:0];
+    assign target_mask=finished ? 13'd0 : event_word[12:0];
     assign octave=event_word[14:13];
-    assign rest=(target_mask==0);
-    assign length=custom ? active_length : 10'd192;
+    assign rest=!finished && (target_mask==0);
+    assign length=custom ? active_length : rom_length;
     wire timed=event_word[23];
+    wire [12:0] note_on=gates & ~previous;
+    // For the single-note built-in melody, allow the previous note to remain
+    // held (legato), but require a fresh correct attack. Never consume a hold
+    // twice, including consecutive notes on the same key in different octaves.
+    wire note_match=custom ? (gates==target_mask && |note_on) :
+        (note_on==target_mask && |target_mask);
     wire append_ok=uploading && !poisoned && staged_length<512 && value<=16'h1fff &&
         (value!=0 || staged_duration!=0);
     wire option_ok=uploading && !poisoned;
@@ -64,17 +73,19 @@ module practice_guide #(
         if(rst) begin
             position<=0;custom<=0;active_bank<=0;uploading<=0;poisoned<=0;
             staged_length<=0;active_length<=0;staged_octave<=1;staged_duration<=0;
-            previous<=0;was_enabled<=0;playing<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;
+            previous<=0;was_enabled<=0;playing<=0;finished<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;
         end else begin
             if(fetch_wait!=0) fetch_wait<=fetch_wait-1'b1;
             if(sample_ce) begin
                 previous<=gates;was_enabled<=enabled;
-                if(!enabled || !was_enabled) begin position<=0;playing<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;end
+                if(!enabled || !was_enabled) begin position<=0;playing<=0;finished<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;end
                 else if(fetch_wait!=0) begin end
+                else if(finished) begin end
                 else if(!playing) begin
-                    if((rest && gates==0) || (gates==target_mask && |(gates & ~previous))) begin
+                    if((rest && gates==0) || note_match) begin
                         correct<=!rest;
                         if(timed) begin playing<=1;remaining<=event_word[22:15];tempo_phase<=0;end
+                        else if(!custom && {1'b0,position}+10'd1>=length) finished<=1;
                         else begin position<=({1'b0,position}+10'd1>=length) ? 0 : position+1'b1;fetch_wait<=2;end
                     end
                 end else begin
@@ -98,9 +109,9 @@ module practice_guide #(
                 end else poisoned<=1;
                 "Z":if(commit_ok) begin
                     active_bank<=!active_bank;active_length<=staged_length;custom<=1;
-                    uploading<=0;position<=0;previous<=gates;playing<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;
+                    uploading<=0;position<=0;previous<=gates;playing<=0;finished<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;
                 end else poisoned<=1;
-                "R":begin custom<=0;uploading<=0;poisoned<=0;position<=0;playing<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;end
+                "R":begin custom<=0;uploading<=0;poisoned<=0;position<=0;previous<=gates;playing<=0;finished<=0;remaining<=0;tempo_phase<=0;fetch_wait<=2;end
                 default:begin end
             endcase
         end

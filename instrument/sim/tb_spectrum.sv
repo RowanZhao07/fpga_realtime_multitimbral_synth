@@ -11,8 +11,8 @@ module tb_spectrum;
     integer outputs,inputs,scenario=0,count=0,n,v;
     integer expected_scope,scope_pixels=0;
     always @(negedge clk) if(!rst && scope_write && !scope_address[9]) begin
-        // A fixed 4x zoom maps +/-8192 PCM to the plot limits, with no AGC.
-        expected_scope=$signed(dut.input_sample)>>>6;
+        // Full PCM16 maps to the plot limits, with no AGC.
+        expected_scope=$signed(dut.input_sample)>>>8;
         if(expected_scope>127) expected_scope=127;
         if(expected_scope< -128) expected_scope=-128;
         if($signed(scope_value)!==expected_scope)

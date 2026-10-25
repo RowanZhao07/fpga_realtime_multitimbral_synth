@@ -2,18 +2,17 @@
 
 Tang Mega 60K NEO（GW5AT-60B）上的纯 HDL 合成器，不使用处理器、MCU 或预录音源。
 
-运行版移除了壁纸 ROM，保留 800×600 HDMI 琴键、512 点波形、4096 点 Hann 窗 FFT 和 GUIDE。原始壁纸图片仍保留在 assets/wallpapers，当前工程不使用它们。
+当前 PCB 使用 EC11 工程：13 键触摸演奏、32 声部、压力调音量及旋钮延音控制；800×600 HDMI 显示琴键、512 点波形、4096 点 Hann 窗 FFT 和 GUIDE。
 
 - 13 个触摸音键，四档音区 C3～C4 / C4～C5 / C5～C6 / C6～C7，默认 C4～C5。
-- 32 个独立相位、音高、音色、ADSR 状态；共享计算流水线在每个音频样本内计算全部声部。四档音区合计 49 个不同音高，最大同时发声 32 个。
-- 每次重按分配新声部，跨音区的旧延音和释音尾巴保留。满载时先找空闲，再选最轻的释放声部，最后抢占最老声部；抢占保留 8 样本短淡出。
-- 四音色：正弦、电钢琴感、合成弦乐、金属音。数学波表插值，基波与泛音层采用不同时间变化；新音锁定音色，旧尾音不被全局切换。
-- 公共压力、颤音、延迟效果、延音、13 键灯和蓝牙参数控制。混音固定增益，32 声部预留额外 6dB 余量，新增按键不会使旧音自动变小。
-- GUIDE 最多 512 步，支持时值、休止、和弦、自动切换音区。内置原创《夜航练习曲》24 小节、192 步，覆盖四档音区；曲谱只指导真人演奏，不自行发声。
+- 四档音区合计 49 个不同音高，最多 32 声部同时发声；重按分配新声部，跨音区的旧延音和释音尾巴保持原音高。
+- 四音色：正弦、电钢琴感、合成弦乐、金属音；数学波表合成，新音锁定音色，旧尾音不受音色切换影响。
+- 公共压力、颤音、延迟效果、延音、13 键灯和蓝牙参数控制。单音最大起音接近数字满幅，多声部叠加采用静态软限幅，主音量和压力在限幅之后线性调节；无按声部数自动降增益。
+- GUIDE 最多 512 步，自动切换音区。内置《遇见》“阴天傍晚车窗外”至“拿着爱的号码牌”，G 调、76 个音，按对立即推进，单遍结束显示 DONE；不含前奏、间奏或反复。曲谱只指导真人演奏，不自行发声。
 
-队友 **chenxi639** 的波形/琴键反馈与 `feature/sustain-pedal` 延音实现已保留；**zrb** 主导平台集成、PCB 验证及本轮需求，Codex 协助实现与验证。详见[协作与更新说明](docs/collaboration_update.md)。实体踏板适配器尚未接入，串口 H0/H1 可控制延音。
+**chenxi639** 的波形/琴键反馈、`feature/sustain-pedal` 与 `feature/ec11-sustain` 延音实现及原始提交均已保留；**zrb** 主导平台集成、PCB 验证与需求，Codex 协助实现与验证。详见[协作与更新说明](docs/collaboration_update.md)。
 
-本次新增由 **chenxi639** 主导的 EC11 五脚旋钮适配：旋转调节 **16 档尾音衰减速度**，按压切换延音开关，HDMI 显示实际状态及档位。保留最新 32 声部与 GUIDE。使用独立入口 **instrument/instrument_ec11.gprj**，默认 T1 电钢琴、延音关闭、03 档。接线、工程配置及算法范围见 [EC11 使用说明](docs/ec11_sustain.md)，检查结果见 [EC11 验证报告](docs/ec11_verification.md)。
+EC11 旋转调节 **16 档尾音衰减速度**，按压切换延音开关；默认 T1 电钢琴、主音量 50%、延音关闭、03 档。HDMI 显示实际开关和档位，延音开启后松键按所选档位衰减。接线和操作见 [EC11 使用说明](docs/ec11_sustain.md)。实体踏板适配器尚未接入，串口 H0/H1 可控制延音。
 
 ## 构建与回归
 
@@ -21,17 +20,17 @@ Tang Mega 60K NEO（GW5AT-60B）上的纯 HDL 合成器，不使用处理器、M
 
 ```powershell
 $env:GOWIN_HOME = Read-Host 'Gowin IDE 目录'
-powershell -NoProfile -ExecutionPolicy Bypass -File instrument/build.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File instrument/build.ps1 -Ec11
 
 $env:VIVADO_BIN = Read-Host 'Vivado bin 目录'
 powershell -NoProfile -ExecutionPolicy Bypass -File instrument/sim/run.ps1 -Python python
 ```
 
-Python 依赖见 instrument/tools/requirements.txt。构建仅在新位流、setup/hold、recovery/removal 和最小脉宽检查通过后更新 dist/instrument.fs。下载选择 **GW5AT-60B → SRAM Program**；断电需重新下载。触摸默认延音工程仍为 instrument/instrument_touch_debug.gprj，构建脚本加 -TouchDebug。EC11 工程对应 -Ec11 和 dist/instrument_ec11.fs，两个选项互斥；本轮仅交付源码，没有生成 EC11 位流。
+Python 依赖见 instrument/tools/requirements.txt。上述命令使用 instrument/instrument_ec11.gprj，产出 **dist/instrument_ec11.fs**；仅在新位流及全部时序检查通过后更新产物。下载选择 **GW5AT-60B → SRAM Program**，断电需重新下载。不加选项构建通用工程并产出 dist/instrument.fs；-TouchDebug 构建默认延音调试版，与 -Ec11 互斥。位流和工具缓存不纳入 Git，克隆后需本机构建。
 
-本轮未连接实物：RTL 仿真、布局布线通过不等于已实测模拟输出。完整触键到 DAC 的方法与工具见 [延迟验收](docs/latency_measurement.md)。数字状态到 I²S 的 tb_latency 不包含 MPR121 和模拟链路，不能替代整机 ≤10ms 验收。
+2026-10-25 当前 EC11 构建通过全部时序检查；本次 GUIDE/UI 更新通过 11 项 RTL、13 项 Python 测试，具体范围及位流校验值见 [EC11 验证](docs/ec11_verification.md)。此前旋钮版已通过用户实物实验，新的 GUIDE/UI 仍待重新烧录验收。
 
-此次构建资源、实时预算、验证记录及位流校验值见 [升级验证](docs/upgrade_verification.md)。
+完整触键到模拟输出延迟仍待示波器测量，数字仿真不代替整机验收；方法见 [延迟验收](docs/latency_measurement.md)。此前 32 声部实时预算见 [升级验证](docs/upgrade_verification.md)。
 
 ## 接线
 
@@ -41,6 +40,8 @@ Python 依赖见 instrument/tools/requirements.txt。构建仅在新位流、set
 |---|---|---|
 | MPR121 A SCL / SDA | 1 / 2 | E14 / E13 |
 | PCM5102 BCK / LRCK / DIN | 3 / 4 / 5 | C15 / C14 / B13 |
+| EC11 SW / B(DT) / A(CLK) | 6 / 7 / 8 | C13 / A14 / A13 |
+| EC11 公共地 | 12 | — |
 | MPR121 B SCL / SDA | 13 / 14 | A16 / A15 |
 | ADS1115 SCL / SDA | 15 / 16 | A20 / B20 |
 | 74HC595 SER / SRCLK / RCLK / OE | 17 / 18 / 19 / 20 | A21 / B21 / B18 / B17 |
@@ -65,11 +66,11 @@ C0 短按换音色、长按切换延迟；C1/C2 调音量，两者同时长按�
 
 按住 X0 再按 C0/C1/C2/C3，选择第 3/4/5/6 音区；一次组合只生效一次，多键歧义不选。X0 单独按住仍检查 13 灯全亮。校准模式固定 C4～C5。
 
-GUIDE 开启时以当前曲谱事件的绝对音区为准，HDMI 音名同步变化；无需手动换八度。等待正确键/和弦后开始计时，经过规定时值且按键释放才进入下一步；提前松手仍等待剩余时值，按住不放不会误触发下一音区。休止符自动计时，额外按键会阻止其结束。这是可等待演奏者的节奏辅助跟弹，不是严格节拍评分器。关闭 GUIDE 恢复此前手动音区，已发声的尾音保持原音高。
+内置 GUIDE 按对键就在下一个音频采样推进，不等时值或松键，节奏由演奏者掌握。HDMI **整键绿色为下一目标，按下为浅蓝色**，目标 LED 常亮；必要时自动换八度，已发声的音保持原音高。连奏可保持上一键再按下一键；连续同键需松开后再按，不会因按住而连跳。76 音结束后显示 DONE 并熄灭目标灯；重新开关 GUIDE 或发送 R 可从头开始。关闭 GUIDE 恢复手动音区。
 
-新声部保留旧音尾巴会比旧版更饱满；满 32 声部才抢占。公共压力 0V 对应主增益 25%，≥3.072V 对应 100%，ADC 离线回到主增益；它不是每键力度。正弦和弦乐可延音保持，电钢琴与金属音仍自然衰减。掉线、复位或校准模式会取消串口延音请求。
+公共压力 0V 对应主增益 25%，按用户实测 **3.235V 标定为 100%**，超出钳位，ADC 离线回到主增益；它不是每键力度。掉线、复位或校准模式会取消延音请求。
 
-屏幕 DIGITAL WAVE 显示送 I²S 的数字 PCM，4 倍纵向放大，不是声压；VOICES 为实际发声声部数，琴键蓝色/小条聚合该物理键各尾音的包络。右下角保留 GUIDE/曲目/步数/BPM/状态，D1 才切换诊断页。
+屏幕 DIGITAL WAVE 显示送 I²S 的数字 PCM，**1X 满幅刻度**，上下边界对应约 ±32768；LIMIT 表示软限幅正在压缩峰值。最大音量和满压力时单音起音约占满幅 92%～94%，尾音按包络衰减；多音过载会改变波形，不能当作无失真放大。八正弦校准保留原线性增益。VOICES 为实际发声声部数，琴键条显示包络；右下角显示 YU JIAN/步数/BPM，D1 切换诊断页。
 
 ## 蓝牙串口与曲谱
 
@@ -80,8 +81,8 @@ GUIDE 开启时以当前曲谱事件的绝对音区为准，HDMI 音名同步变
 | ? | 通信检查 |
 | T0～T3 / V0～V4096 | 音色 / 主音量 |
 | E0/E1、H0/H1、G0/G1 | 回声、延音、GUIDE 开关 |
-| B40～B240 | BPM，改变后影响后续时值计时 |
-| R | 恢复内置 192 步《夜航》 |
+| B40～B240 | 节拍速度；也影响上传的计时曲谱，内置曲不等待节拍 |
+| R | 恢复内置 76 音《遇见》片段并从头开始，BPM 恢复 93 |
 | N、Axxxx、Z | 开始上传、追加四位十六进制键位掩码、原子提交 |
 | O3～O6 | 上传时设置后续步骤的音区 |
 | U1～U255 | 上传时设置后续步骤时值，单位十六分音符；U2 是八分音符 |
@@ -89,14 +90,14 @@ GUIDE 开启时以当前曲谱事件的绝对音区为准，HDMI 音名同步变
 | J0～J8191 / J8192 | PCB LED 掩码测试 5 秒 / 取消 |
 | L0～L255 / L256 | 旧八白键灯掩码 / 取消 |
 
-每次 N 默认音区 4、旧版不计时模式。A 的 bit0～7 对应 K0～K7，bit8～12 对应 S0～S4；设置 U 后 A0000 表示休止，未设置 U 的空音符拒绝。最多 512 步，上传错误必须重新 N，Z 成功前旧曲谱不变。自定义曲谱在复位/断电后失效。旧版非空掩码曲谱仍是按对立即推进。
+每次 N 默认音区 4、不计时模式。A 的 bit0～7 对应 K0～K7，bit8～12 对应 S0～S4；设置 U 后 A0000 表示休止，未设置 U 的空音符拒绝。最多 512 步，上传错误必须重新 N，Z 成功前旧曲谱不变。上传曲谱仍循环播放：设 U 的事件按规定时值和松键推进，未设 U 的非空事件按对立即推进；复位/断电后失效。
 
-文本曲谱支持 C4:2、C#5:1、C4+E4+G4:4、REST:2；和弦必须能放在同一物理音区，工具会在发送前检查。行首 # 为注释。
+文本曲谱支持 C4:2、C#5:1、C4+E4+G4:4、REST:2；和弦必须能放在同一物理音区，工具会在发送前检查。行首 # 为注释。下列上传例子会启用计时模式；内置《遇见》无需上传。
 
 ```powershell
-python instrument/tools/serial_control.py --score assets/scores/nocturne.txt --bpm 120 --emit
+python instrument/tools/serial_control.py --score assets/scores/yujian.txt --bpm 93 --emit
 # 有实际 SPP/USB-UART 数据串口时（不是 JTAG 下载口）：
-python instrument/tools/serial_control.py --port COM7 --score assets/scores/nocturne.txt --bpm 120
+python instrument/tools/serial_control.py --port COM7 --score assets/scores/yujian.txt --bpm 93
 ```
 
 失步时工具会先发送无效行清除半行，再用 ? 同步。上传不自动重发 A，避免重复追加。完整 TX= 状态行静默忽略。J1/J2/.../J4096 依次可检查 13 个 PCB 灯。

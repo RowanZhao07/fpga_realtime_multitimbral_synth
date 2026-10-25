@@ -166,27 +166,26 @@ module tb_key_lights;
         if(status[7:0]!=0 || status[44:40]!=0) $fatal(1,"Lamp check triggered notes");
         touched=0; check(0);
         $display("PASS: all 13 PCB LEDs, white/sharp chords, no stale LED1/LED9 mirroring, X0 all-on");
-        touched=18'h600; frames(12); touched=0; frames(2); check(1);
+        touched=18'h600; frames(12); touched=0; frames(2); check(4);
         if(!status[27]) $fatal(1,"Guide did not enable");
-        touched=4; frames(2); check(16'h11);
+        touched=4; frames(2); check(16'h14);
         if(status[36:31]!=0) $fatal(1,"Wrong key advanced guide");
-        // Speed only the preexisting blink timer boundary; the LED path is real.
-        force core.tempo.flash_left=0; check(16'h10);
-        release core.tempo.flash_left;
-        force core.tempo.flash_left=100000;
-        // New timed score starts C4, E3, G3. Time expiry alone must not
-        // advance a held key; release changes both octave and target LED.
-        touched=0;frames(2);touched=1;frames(8);check(16'h1);
-        if(core.guide_position!=0) $fatal(1,"Held guide note advanced before release");
-        touched=0;frames(3);check(16'h10);
-        if(core.octave_select!=0 || core.guide_position!=1)
-            $fatal(1,"Guide failed to select E3 and its physical LED");
-        touched=4;frames(8);touched=0;frames(3);check(16'h80);
-        if(status[30:28]!=4 || core.guide_position!=2)
-            $fatal(1,"Guide target did not advance to G3");
+        // Targets stay lit even between tempo flashes.
+        force core.tempo.flash_left=0; check(16'h14);
+        // Vocal excerpt starts D5, B4, D5. Target advances on press,
+        // while the held D LED is still overlaid on the new B target.
+        touched=0;frames(2);touched=2;frames(1);check(16'h804);
+        if(core.guide_position!=1) $fatal(1,"Correct press did not immediately advance guide");
+        frames(10);if(core.guide_position!=1)$fatal(1,"Held note advanced twice");
+        touched=0;frames(3);check(16'h800);
+        if(core.octave_select!=1 || core.guide_position!=1)
+            $fatal(1,"Guide failed to select B4 and its physical LED");
+        touched=64;frames(1);check(16'h804);touched=0;frames(3);check(16'h4);
+        if(status[30:28]!=1 || core.guide_position!=2)
+            $fatal(1,"Guide target did not advance to D5");
         release core.tempo.flash_left;
         online=0; check(0);
-        $display("PASS: target blink overlays held keys, correct-note advance and offline blanking");
+        $display("PASS: steady target overlays held keys, immediate advance and offline blanking");
         online=1; touched=18'hF00; frames(12); touched=0; frames(2); check(16'h1AB5);
         if(!status[26]) $fatal(1,"Eight-sine test mode did not enable");
         touched=18'hF00; frames(12); touched=0; frames(2);

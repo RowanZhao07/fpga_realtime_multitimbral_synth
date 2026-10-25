@@ -13,7 +13,7 @@ module tb_synthesis;
     wire signed [15:0] sample;
     wire clipped;
     audio_output output_stage(.clk(clk),.rst(rst),.valid(valid),.mixed(mixed),
-        .volume(volume),.echo_enable(echo),.sample(sample),.clipped(clipped));
+        .volume(volume),.calibration(1'b0),.echo_enable(echo),.sample(sample),.clipped(clipped));
     integer f,n,scenario=0,expected_mix;
     task frame;
         begin

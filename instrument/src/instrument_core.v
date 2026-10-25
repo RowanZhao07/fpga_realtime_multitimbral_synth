@@ -38,10 +38,10 @@ module instrument_core #(
     wire [2:0] guide_target;
     wire [8:0] guide_position;
     wire [1:0] guide_octave;
-    wire guide_rest,guide_playing;
+    wire guide_rest,guide_playing,guide_finished;
     wire [5:0] voice_count;
     wire engine_overrun;
-    wire sample_ce, vibrato, spectrum_mode, valid, clipped;
+    wire sample_ce, vibrato, spectrum_mode, valid, clipped,limited;
     wire [12:0] gates,active;
     wire [1:0] timbre;
     wire [1:0] selected_octave;
@@ -54,7 +54,7 @@ module instrument_core #(
     wire [15:0] command_value;
     wire [12:0] guide_mask;
     wire [9:0] guide_length;
-    reg [7:0] bpm=120;
+    reg [7:0] bpm=93;
     localparam integer LAMP_TIMER_BITS=LAMP_TEST_CLOCKS>1 ? $clog2(LAMP_TEST_CLOCKS+1) : 1;
     reg [LAMP_TIMER_BITS-1:0] lamp_test_left=0;
     reg [12:0] lamp_test_mask=0;
@@ -72,15 +72,16 @@ module instrument_core #(
         .command_valid(command_valid),.command(command),.value(command_value),
         .input_error(input_error),.accepted(accepted),.rejected(rejected),.diagnostics(uart_diagnostics));
     always @(posedge clk) begin
-        if(rst) begin bpm<=120;diagnostics_visible<=0;end
+        if(rst) begin bpm<=93;diagnostics_visible<=0;end
         else if(command_valid) case(command)
             "B":bpm<=command_value[7:0];
+            "R":bpm<=93;
             "D":diagnostics_visible<=command_value[0];
             default:begin end
         endcase
     end
     assign control_status={rejected,accepted,custom_score,(guide_length>127 ? 7'd127 : guide_length[6:0]),bpm,guide_mask};
-    assign performance_info={voice_count,guide_length,guide_position,guide_rest,guide_playing,5'b0};
+    assign performance_info={voice_count,guide_length,guide_position,guide_rest,guide_playing,guide_finished,4'b0};
     // A bounded, silent hardware diagnostic independent of touch detection.
     // Preserve L0..255 white-key masks and L256 cancel. J0..8191 addresses
     // physical LED1..13 directly; J8192 cancels. Both expire after five seconds.
@@ -95,9 +96,9 @@ module instrument_core #(
         end else if(lamp_test) lamp_test_left<=lamp_test_left-1'b1;
     end
     // One pressure pad is a global expression control. Q9 gain spans 1/4..1,
-    // reaching unity at 3072 mV; C1/C2 still set the maximum playing volume.
-    wire [9:0] pressure_gain=pressure_mv>=12'd3072 ? 10'd512 :
-        10'd128+{1'b0,pressure_mv[11:3]};
+    // reaching unity at the measured 3235mV; C1/C2 set maximum playing volume.
+    wire [9:0] pressure_gain;
+    pressure_mapping expression(.millivolts(pressure_mv),.gain(pressure_gain),.bar_width());
     wire [22:0] pressure_product=volume*pressure_gain;
     wire [12:0] expressive_volume=pressure_online ? pressure_product[21:9] : volume;
     wire signed [18:0] mixed;
@@ -134,22 +135,22 @@ module instrument_core #(
         .timbre(spectrum_mode ? 2'b0 : timbre),.octave_select(octave_select),.vibrato(vibrato),
         .mixed(mixed),.valid(valid),.active(active),.voice_levels(voice_levels),.voice_count(voice_count),.overrun(engine_overrun));
     audio_output output_stage(.clk(clk),.rst(audio_reset),.valid(valid),.mixed(mixed),
-        .volume(spectrum_mode ? 13'd2048 : expressive_volume),.echo_enable((ENABLE_ECHO || echo_enabled) && !spectrum_mode),
-        .sample(sample),.clipped(clipped));
+        .volume(spectrum_mode ? 13'd2048 : expressive_volume),.calibration(spectrum_mode),.echo_enable((ENABLE_ECHO || echo_enabled) && !spectrum_mode),
+        .sample(sample),.clipped(clipped),.limited(limited));
     i2s_transmitter transmitter(.clk(clk),.rst(rst),.sample(sample),
         .sample_ce(sample_ce),.bck(dac_bck),.lrck(dac_lrck),.din(dac_din));
     practice_guide guide(.clk(clk),.rst(rst),.sample_ce(sample_ce),.bpm(bpm),
         .command_valid(command_valid),.command(command),.value(command_value),.input_error(input_error),
         .command_ok(command_ok),.target_mask(guide_mask),.length(guide_length),.custom(custom_score),
         .enabled(guide_enabled && online && !spectrum_mode),.gates(gates),
-        .target(guide_target),.position(guide_position),.correct(),.octave(guide_octave),.rest(guide_rest),.playing(guide_playing));
+        .target(guide_target),.position(guide_position),.correct(),.octave(guide_octave),.rest(guide_rest),.playing(guide_playing),.finished(guide_finished));
     assign monitor_sample=sample;
     assign monitor_ce=sample_ce;
     reg [25:0] heartbeat_count=0;
     wire tempo_pulse;
     tempo_clock tempo(.clk(clk),.rst(rst),.bpm(bpm),.flash(tempo_pulse),.beat());
     assign status={touched[17],chip_online,active[12:8],gates[12:8],
-        lamp_test,tempo_pulse,clipped,guide_position[5:0],guide_target,guide_enabled,spectrum_mode,
+        lamp_test,tempo_pulse,(clipped || limited),guide_position[5:0],guide_target,guide_enabled,spectrum_mode,
         echo_enabled,vibrato,online,volume[12:8],timbre,active[7:0],gates[7:0]};
     always @(posedge clk) begin
         if(rst) heartbeat_count<=0;
@@ -161,11 +162,11 @@ module instrument_core #(
     wire [7:0] preset_light=8'h10 << timbre;
     wire [7:0] lights= !online ? (beat ? 8'h81 : 8'h00) :
         spectrum_mode ? (beat ? 8'hFF : 8'h00) :
-        (|gates) ? gates[7:0] : guide_enabled ? (tempo_pulse ? guide_mask[7:0] : 8'b0) : (preset_light | 8'h02 | {7'd0,beat});
+        (|gates) ? gates[7:0] : guide_enabled ? guide_mask[7:0] : (preset_light | 8'h02 | {7'd0,beat});
     assign led=~lights;
-    // All thirteen PCB lamps show held notes plus the flashing guide target.
+    // All thirteen PCB lamps show held notes plus a steady guide target.
     // X0 retains the lamp check while also modifying C0..C3; it is not a note.
-    wire [12:0] guide_lights=guide_enabled && !spectrum_mode && tempo_pulse ?
+    wire [12:0] guide_lights=guide_enabled && !spectrum_mode ?
         guide_mask : 13'b0;
     assign key_lights=lamp_test ? lamp_test_mask :
         !online ? 13'b0 : touched[17] ? 13'h1FFF : pcb_lamps(gates | guide_lights);

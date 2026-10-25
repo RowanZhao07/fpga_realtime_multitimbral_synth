@@ -12,7 +12,7 @@ module tb_sustain_audio;
    .sustain_down(v==1 ? pedal : 1'b0),.timbre(2'd1),.octave_select(2'd1),.vibrato(1'b0),
    .mixed(mixed[v]),.valid(valid[v]),.active(),.voice_levels());
   audio_output output_stage(.clk(clk),.rst(rst),.valid(valid[v]),.mixed(mixed[v]),
-   .volume(13'd4096),.echo_enable(1'b0),.sample(pcm[v]),.clipped(clipped[v]));
+   .volume(13'd4096),.calibration(1'b0),.echo_enable(1'b0),.sample(pcm[v]),.clipped(clipped[v]));
  end endgenerate
  integer f,n;
  initial begin

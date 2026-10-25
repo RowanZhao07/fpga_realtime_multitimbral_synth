@@ -18,7 +18,7 @@ module tb_video;
     reg expected_adc_online=0,expected_debug=0;
     integer expected_mv=0;
     instrument_screen screen(.sustain_info(6'd0),.clk(clk),.rst(rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
-        .vertical_blank(blank),.status(status),.performance_info({6'd13,10'd192,9'd4,7'd0}),.visual_ready(1'b1),.visual_data(data),
+        .vertical_blank(blank),.status(status),.performance_info({6'd13,10'd76,9'd4,7'd0}),.visual_ready(1'b1),.visual_data(data),
         .voice_levels(fixture_levels),.octave_select(octave_select),.scope_ready(1'b1),.scope_data(data),.scope_address(),
         .visual_address(addr),.rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     reg [2:0] sync1=0,sync2=0,sync3=0;
@@ -100,12 +100,13 @@ module tb_video;
             if(screen.py==520 && screen.px==732 && screen.character!=="-") $fatal(1,"Missing UART byte");
         end
         if(expected_adc_online && !expected_debug) begin
-            if(screen.py==476 && screen.px==636 && screen.character!=="9") $fatal(1,"BPM 090");
-            if(screen.py==452 && screen.px==708 && screen.character!=="2") $fatal(1,"Score length 192");
+            if(screen.py==476 && screen.px==648 && screen.character!=="3") $fatal(1,"BPM 093");
+            if(screen.py==452 && screen.px==708 && screen.character!=="6") $fatal(1,"Score length 076");
             if(screen.py==524 && screen.px==636 && screen.character!=="2") $fatal(1,"RX 012");
             if(screen.py==524 && screen.px==720 && screen.character!=="2") $fatal(1,"ERR 002");
-            if(screen.py==166 && screen.px==48 && screen.color!==24'hF2BE55) $fatal(1,"White chord target border");
-            if(screen.py==90 && screen.px==80 && screen.color!==24'hF2BE55) $fatal(1,"Sharp target border");
+            if(screen.py==140 && screen.px==112 && screen.color!==24'h48E0A0) $fatal(1,"White target full green fill");
+            if(screen.py==120 && screen.px==144 && screen.color!==24'h48E0A0) $fatal(1,"Sharp target full green fill");
+            if(screen.py==140 && screen.px==48 && screen.color!==24'h91B9E4) $fatal(1,"Held white key light blue");
         end
     end
     task capture_frame(input string filename);
@@ -147,6 +148,7 @@ module tb_video;
             if(rd>8 || rd< -8) $fatal(1,"TMDS running disparity bound");
         end
         status={8'd2,8'd12,1'b1,7'd64,8'd90,13'h105,1'b1,12'd2000,1'b1,2'b11,5'h1F,5'h15,2'b0,1'b0,6'd4,3'd5,1'b1,1'b0,1'b1,1'b1,1'b1,5'd12,2'd2,8'hFF,8'h15};
+        status[94]=0;status[86:79]=93;status[78:66]=13'h202;
         status[194:111]={8'd255,8'd1,4'd7,64'h3F0A450D0A540000};
         status[195]=1;
         status[39]=1;

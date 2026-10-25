@@ -12,9 +12,8 @@ module waveform_capture #(parameter integer TRIGGER_TIMEOUT=128)(
     reg signed [15:0] previous=0;
     reg [8:0] index=0;
     wire crossing=previous<0 && sample>=0;
-    wire signed [15:0] scaled=sample>>>6;
-    // Preserve the current display's fixed 4x scale: two stored units per
-    // vertical pixel, +/-8192 PCM spans the plot. Never auto-normalize gain.
+    wire signed [15:0] scaled=sample>>>8;
+    // Full PCM16 scale: +/-32768 spans the plot. No display AGC or extra zoom.
     wire [7:0] height=scaled>127 ? 8'h7f : scaled< -128 ? 8'h80 : scaled[7:0];
     always @(posedge clk) begin
         write_enable<=0;

@@ -84,10 +84,11 @@ INS_LOC "transmitter/lanes[1].reset_pipe_0_s1" R4C126;
 INS_LOC "transmitter/lanes[1].reset_pipe_1_s1" R4C126;
 INS_LOC "transmitter/lanes[1].reset_pipe_2_s1" R4C126;
 INS_LOC "transmitter/lanes[1].reset_gate" R4C126;
-INS_LOC "transmitter/lanes[2].reset_pipe_0_s1" R5C126;
-INS_LOC "transmitter/lanes[2].reset_pipe_1_s1" R5C126;
-INS_LOC "transmitter/lanes[2].reset_pipe_2_s1" R5C126;
-INS_LOC "transmitter/lanes[2].reset_gate" R5C126;
+// Lane 2 drives IOR39: move its release logic closer to that serializer.
+INS_LOC "transmitter/lanes[2].reset_pipe_0_s1" R9C126;
+INS_LOC "transmitter/lanes[2].reset_pipe_1_s1" R9C126;
+INS_LOC "transmitter/lanes[2].reset_pipe_2_s1" R9C126;
+INS_LOC "transmitter/lanes[2].reset_gate" R9C126;
 INS_LOC "transmitter/lanes[3].reset_pipe_0_s1" R4C126;
 INS_LOC "transmitter/lanes[3].reset_pipe_1_s1" R4C126;
 INS_LOC "transmitter/lanes[3].reset_pipe_2_s1" R4C126;

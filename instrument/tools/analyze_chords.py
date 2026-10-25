@@ -13,8 +13,8 @@ triad_length = 24414 + 5000
 
 
 def write_wav(name, samples):
-    # A single fixed listening gain for every tone and both revisions. No AGC.
-    boosted = samples.astype(np.int64) * 4
+    # Export the actual DAC level; the instrument now uses its full PCM range.
+    boosted = samples.astype(np.int64)
     assert np.max(np.abs(boosted)) < 32767, 'Listening export would clip'
     with wave.open(str(out / name), 'wb') as w:
         w.setnchannels(1)
@@ -55,7 +55,7 @@ def inspect(path, revision):
 
 
 result = {'evidence': 'RTL simulation, not physical speaker recording',
-          'sample_rate_hz': fs, 'wav_playback_gain': 4,
+          'sample_rate_hz': fs, 'wav_playback_gain': 1,
           'tone_order_after': ['sine', 'epiano', 'strings', 'metal'],
           'tone_order_before': ['sine', 'square', 'saw', 'metal'],
           'final_release_samples': 12000,

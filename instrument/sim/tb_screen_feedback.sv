@@ -6,10 +6,11 @@ module tb_screen_feedback;
     reg rst=1,blank=0;reg [10:0] x=0;reg [9:0] y=0;
     reg [203:0] status=0;reg [103:0] levels=0;
     reg [1:0] octave_select=1;
+    reg [31:0] performance={6'd13,10'd76,9'd4,7'd0};
     reg [7:0] scope=0,source=0;wire [23:0] rgb;
     always @(posedge clk) scope<=source;
     instrument_screen dut(.sustain_info(6'd0),.clk(clk),.rst(rst),.x(x),.y(y),.de(1'b1),.hs(1'b0),.vs(1'b0),
-        .vertical_blank(blank),.status(status),.performance_info({6'd13,10'd192,9'd4,7'd0}),.voice_levels(levels),.octave_select(octave_select),
+        .vertical_blank(blank),.status(status),.performance_info(performance),.voice_levels(levels),.octave_select(octave_select),
         .scope_ready(1'b1),.scope_data(scope),.scope_address(),
         .visual_ready(1'b0),.visual_data(8'd0),.visual_address(),
         .rgb(rgb),.out_de(),.out_hs(),.out_vs());
@@ -32,11 +33,11 @@ module tb_screen_feedback;
         // All thirteen independently addressable held keys, including all sharps.
         status[7:0]=8'hff;status[44:40]=5'h1f;
         status[15:8]=8'hff;status[49:45]=5'h1f;levels={13{8'd200}};latch;
-        for(k=0;k<8;k=k+1) pixel(32+k*64,140,24'h60D9CA);
-        for(k=0;k<5;k=k+1) pixel(74+64*(k<2 ? k : k+1),120,24'h6878B8);
+        for(k=0;k<8;k=k+1) pixel(32+k*64,140,24'h91B9E4);
+        for(k=0;k<5;k=k+1) pixel(74+64*(k<2 ? k : k+1),120,24'h91B9E4);
         // Keep held C4, release D4 and the last sharp only; other keys idle.
         status[7:0]=1;status[44:40]=0;status[15:8]=3;status[49:45]=5'b10000;latch;
-        pixel(32,140,24'h60D9CA);pixel(96,140,24'h91B9E4);
+        pixel(32,140,24'h91B9E4);pixel(96,140,24'h91B9E4);
         pixel(160,140,24'hCDD5E5);pixel(394,120,24'h324CB4);
         pixel(137,162,24'h249C8B);pixel(138,162,24'hAAB6CA);
         pixel(420,126,24'h48E0C0);pixel(428,126,24'h29384F);
@@ -48,7 +49,14 @@ module tb_screen_feedback;
         status[15:8]=1;status[49:45]=0;latch;
         pixel(96,140,24'hCDD5E5);pixel(394,120,24'h202A41);
         status[27]=1;status[78:66]=13'h1002;latch;
-        pixel(100,166,24'hF2BE55);pixel(398,90,24'hF2BE55);
+        pixel(100,166,24'h48E0A0);pixel(100,140,24'h48E0A0);pixel(100,162,24'h48E0A0);
+        pixel(398,90,24'h48E0A0);pixel(398,120,24'h48E0A0);pixel(398,126,24'h48E0A0);
+        status[7:0]=2;status[44:40]=5'b10000;latch;
+        pixel(100,140,24'h91B9E4);pixel(398,120,24'h91B9E4); // press wins over target
+        status[7:0]=0;status[44:40]=0;latch;
+        pixel(100,140,24'h48E0A0);pixel(398,120,24'h48E0A0); // release restores target
+        performance[4]=1;latch;character_at(576,500,"D");character_at(640,44,"D");
+        performance[4]=0;
         source=8'h7f;pixel(40,245,24'h48E0C0);
         source=8'h80;pixel(40,372,24'h48E0C0);
         // Opposite-sign consecutive samples must have a continuous bridge.
@@ -61,8 +69,8 @@ module tb_screen_feedback;
         // The normal guide card stays available through disconnect/reconnect.
         status=0;status[51]=1;status[86:79]=120;status[93:87]=14;latch;
         character_at(576,408,"G");character_at(660,408,"F");
-        character_at(576,432,"N");character_at(636,432,"R");
-        character_at(636,452,"0");character_at(708,452,"2");
+        character_at(576,432,"Y");character_at(636,432,"A");
+        character_at(636,452,"0");character_at(708,452,"6");
         character_at(624,476,"1");character_at(648,476,"0");
         character_at(576,500,"L");character_at(576,524,"R");
         status[23]=1;status[50]=1;latch;

@@ -17,7 +17,7 @@ module tb_octave_audio;
         .sustain_down(pedal),.timbre(timbre),.octave_select(reference_octave),.vibrato(vibrato),
         .mixed(reference_mixed),.valid(reference_valid));
     audio_output output_stage(.clk(clk),.rst(rst),.valid(valid),.mixed(mixed),
-        .volume(13'd4096),.echo_enable(1'b0),.sample(pcm),.clipped(clipped));
+        .volume(13'd4096),.calibration(1'b0),.echo_enable(1'b0),.sample(pcm),.clipped(clipped));
     wire [31:0] measured_step[0:12];
     wire [31:0] measured_phase[0:12];
     for(genvar v=0;v<13;v=v+1) begin

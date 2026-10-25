@@ -56,12 +56,13 @@ module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0
     wire [7:0] key_level=display_levels>>(key_index*8);
     wire [13:0] key_meter=key_level*6'd56;
     wire [7:0] tail_blue=8'd128+{1'b0,key_level[7:1]};
-    wire [7:0] pressure_width=pressure_mv>=3072 ? 8'd192 : {1'b0,pressure_mv[11:4]};
+    wire [7:0] pressure_width;
+    pressure_mapping pressure_meter(.millivolts(pressure_mv),.gain(),.bar_width(pressure_width));
     // Status text is formatted only at the coherent vertical-blank snapshot.
     reg [55:0] pressure_text="0.000 V";
     reg [23:0] volume_text="000",bpm_text="000",rx_text="000",error_text="000";
     reg [15:0] voice_text="00";
-    reg [23:0] step_text="001",length_text="192";
+    reg [23:0] step_text="001",length_text="076";
     function [7:0] digit;
         input integer n;
         begin digit=8'd48+n;end
@@ -156,13 +157,13 @@ module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0
             3:label(x,y,416,24,10,"TONE METAL",24'hC8BCFF);
         endcase
         label(x,y,416,44,9,"48.8K I2S",24'h9CAEC9);
-        label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "WAIT NOTE ") : "LIVE INPUT",24'hC8BCFF);
+        label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[4] ? "DONE      " : display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "NEXT NOTE ") : "LIVE INPUT",24'hC8BCFF);
         for(key_label=0;key_label<8;key_label=key_label+1)
             label(x,y,48+64*key_label,146,2,white_note(key_label,octave_digit),24'h142137);
         for(sharp_label=0;sharp_label<5;sharp_label=sharp_label+1)
             label(x,y,74+64*(sharp_label<2 ? sharp_label : sharp_label+1),102,3,sharp_note(sharp_label,octave_digit),24'hF1F1FA);
         label(x,y,28,204,12,"DIGITAL WAVE",24'hC8BCFF);
-        label(x,y,508,204,2,"4X",24'h9CAEC9);
+        label(x,y,508,204,2,"1X",24'h9CAEC9);
         label(x,y,28,224,25,"I2S OUT / 10.49 MS / TRIG",24'h9CAEC9);
         label(x,y,28,408,8,"SPECTRUM",24'hC8BCFF);
         label(x,y,396,408,11,"4096 / HANN",24'h9CAEC9);
@@ -181,7 +182,7 @@ module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0
         label(x,y,576,296,echo_on ? 7 : 8,echo_on ? "ECHO ON" : "ECHO OFF",24'hF1F1FA);
         label(x,y,576,320,vibrato ? 6 : 7,vibrato ? "VIB ON" : "VIB OFF",24'hF1F1FA);
         label(x,y,576,356,11,"PRE-SPEAKER",24'h9CAEC9);
-        if(display_status[37]) label(x,y,720,320,4,"CLIP",24'hFFA3A8);
+        if(display_status[37]) label(x,y,708,320,5,"LIMIT",24'hFFA3A8);
         if(diagnostics_visible) begin
             label(x,y,576,408,10,"UART DEBUG",24'hC8BCFF);
             label(x,y,576,432,11,{"BY",decimal3(uart_bytes)," FR",decimal3(uart_frames)},24'hF1F1FA);
@@ -191,10 +192,10 @@ module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0
             label(x,y,576,520,14,{"D4 ",trace_hex(4,uart_first_bytes,uart_capture_count)," ",trace_hex(5,uart_first_bytes,uart_capture_count)," ",trace_hex(6,uart_first_bytes,uart_capture_count)," ",trace_hex(7,uart_first_bytes,uart_capture_count)},24'hF1F1FA);
         end else begin
             label(x,y,576,408,guide_on ? 8 : 9,guide_on ? "GUIDE ON" : "GUIDE OFF",24'hC8BCFF);
-            label(x,y,576,432,custom_score ? 9 : 8,custom_score ? "SONG USER" : "NOCTURNE",24'hF1F1FA);
+            label(x,y,576,432,custom_score ? 9 : 7,custom_score ? "SONG USER" : "YU JIAN",24'hF1F1FA);
             label(x,y,576,452,12,{"STEP ",step_text,"/",length_text},24'hF1F1FA);
             label(x,y,576,476,7,{"BPM ",bpm_text},24'hF1F1FA);
-            label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "WAIT NOTE ") : "LIVE INPUT",24'h9CAEC9);
+            label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[4] ? "DONE      " : display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "NEXT NOTE ") : "LIVE INPUT",24'h9CAEC9);
             label(x,y,576,524,13,{"RX ",rx_text," ER ",error_text},24'h9CAEC9);
         end
         if(ENABLE_EC11)
@@ -278,24 +279,24 @@ module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0
         if(panel) color=glass_rgb;
         if(panel && !panel_inner) color=24'h495166;
         if(px>=28 && px<540 && py>=88 && py<168 && key_offset[5:0]<62) begin
-            color=gates[key_index] ? 24'h60D9CA :
+            color=gates[key_index] ? 24'h91B9E4 :
+                (guide_on && guide_mask[key_index]) ? 24'h48E0A0 :
                 active[key_index] ? {8'h91,8'hB9,tail_blue} : 24'hCDD5E5;
             // The meter is the voice ADSR before pressure/master gain and echo.
-            if(py>=160 && py<164 && key_offset[5:0]>=3 && key_offset[5:0]<59)
+            if(!(guide_on && guide_mask[key_index]) && py>=160 && py<164 && key_offset[5:0]>=3 && key_offset[5:0]<59)
                 color=key_offset[5:0]-3<key_meter[13:8] ? 24'h249C8B : 24'hAAB6CA;
-            if(guide_on && guide_mask[key_index] && (py<91 || py>=165)) color=24'hF2BE55;
         end
         for(sharp=0;sharp<5;sharp=sharp+1) begin
             sharp_level=display_levels>>((8+sharp)*8);
             sharp_meter=sharp_level*6'd36;
             if(py>=88 && py<134 && px>=(sharp<2 ? 70+64*sharp : 134+64*sharp) &&
                 px<(sharp<2 ? 114+64*sharp : 178+64*sharp)) begin
-                color=gates[8+sharp] ? 24'h6878B8 :
+                color=gates[8+sharp] ? 24'h91B9E4 :
+                    (guide_on && guide_mask[8+sharp]) ? 24'h48E0A0 :
                     active[8+sharp] ? {8'h32,8'h4C,(8'd80+{1'b0,sharp_level[7:1]})} : 24'h202A41;
-                if(py>=124 && py<128 && px>=(sharp<2 ? 74+64*sharp : 138+64*sharp) &&
+                if(!(guide_on && guide_mask[8+sharp]) && py>=124 && py<128 && px>=(sharp<2 ? 74+64*sharp : 138+64*sharp) &&
                     px<(sharp<2 ? 110+64*sharp : 174+64*sharp))
                     color=px-(sharp<2 ? 74+64*sharp : 138+64*sharp)<sharp_meter[13:8] ? 24'h48E0C0 : 24'h29384F;
-                if(guide_on && guide_mask[8+sharp] && (py<91 || py>=131)) color=24'hF2BE55;
             end
         end
         if(px>=28 && px<540 && py>=244 && py<=372) begin

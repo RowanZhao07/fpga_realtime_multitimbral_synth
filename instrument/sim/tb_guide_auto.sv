@@ -28,6 +28,21 @@ module tb_guide_auto;
  send("G0");frames(2);if(octave!=1)$fatal(1,"Manual octave was not restored");
  if(dut.engine.steps[1]!=92051312)$fatal(1,"Disabling guide retuned held note");
  $display("PASS: UART absolute score, automatic 3/6 octave, independent sustain, manual restore");
+ // Built-in free-step handoff: audio captures the old octave on the SAME
+ // sample edge that advances the target. Held voices never retune afterward.
+ touched=0;rst=1;repeat(5)@(negedge clk);rst=0;send("G1");frames(3);
+ if(octave!=2 || dut.guide_position!=0)$fatal(1,"Built-in D5 pickup");
+ touched=2;frames(1);
+ if(dut.guide_position!=1 || octave!=1 || dut.engine.steps[0]!=51662052)
+ $fatal(1,"D5 note-on did not atomically advance to B4 while preserving D5 audio");
+ frames(5);if(dut.guide_position!=1 || dut.engine.steps[0]!=51662052)$fatal(1,"Hold repeated or retuned");
+ touched=66;frames(1); // B4 attack while D5 is still physically held.
+ if(dut.guide_position!=2 || octave!=2 || dut.engine.steps[1]!=43442435)
+ $fatal(1,"Legato B4 handoff to D5 lost the note-on or octave");
+ touched=64;frames(2);touched=66;frames(1);
+ if(dut.guide_position!=3 || dut.engine.steps[2]!=51662052 || dut.engine.steps[0]!=51662052)
+ $fatal(1,"Repeated D5 attack or original tail pitch changed");
+ $display("PASS: built-in note-on advances in one sample, legato and old-pitch preservation");
  $display("ALL TESTS PASSED");$finish;
  end
  initial begin #5000000;$fatal(1,"Guide integration watchdog");end
