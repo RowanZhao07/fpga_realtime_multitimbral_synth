@@ -9,6 +9,10 @@ if {[info exists ::env(INSTRUMENT_BUILD_PROFILE)] && $::env(INSTRUMENT_BUILD_PRO
     set build_base instrument_ec11
     set config_file ec11_process_config.json
 }
+if {[info exists ::env(INSTRUMENT_BUILD_PROFILE)] && $::env(INSTRUMENT_BUILD_PROFILE) eq "joystick"} {
+    set build_base instrument_joystick
+    set config_file joystick_process_config.json
+}
 file mkdir [file join $root impl]
 file copy -force [file join $root config $config_file] [file join $root impl ${build_base}_process_config.json]
 open_project [file join $root ${build_base}.gprj]
@@ -19,4 +23,8 @@ set_option -vccx 1.8
 set_option -use_cpu_as_gpio 1
 # Plain-text timing reports are enabled by Generate_Plain_Text_Timing_Report
 # in process_config.json; 1.9.12.04 does not accept -gen_text_timing_rpt.
-run all
+if {[info exists ::env(INSTRUMENT_SYNTHESIS_ONLY)] && $::env(INSTRUMENT_SYNTHESIS_ONLY) eq "1"} {
+    run syn
+} else {
+    run all
+}

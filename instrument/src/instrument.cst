@@ -101,3 +101,8 @@ IO_LOC "encoder_sw_n" C13;
 IO_PORT "encoder_a" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
 IO_PORT "encoder_b" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
 IO_PORT "encoder_sw_n" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
+
+// Shared ADS1115 keeps pressure_scl/sda on J13-15/16; VRx goes to AIN1.
+// KY-023 switch: J13-23/A7/A19. External pull-up to 3.3V recommended.
+IO_LOC "joystick_sw_n" A19;
+IO_PORT "joystick_sw_n" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;

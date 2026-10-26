@@ -10,11 +10,21 @@ module instrument_top #(
 `else
     parameter ENABLE_EC11=1'b0,
 `endif
+`ifdef INSTRUMENT_JOYSTICK
+    parameter ENABLE_JOYSTICK=1'b1,
+`else
+    parameter ENABLE_JOYSTICK=1'b0,
+`endif
+    parameter integer JOYSTICK_BUTTON_CLOCKS=500000,
+    parameter JOYSTICK_REVERSE=1'b0, JOYSTICK_BUTTON_ACTIVE_LOW=1'b1,
+    parameter integer JOYSTICK_CENTER_MV=1650,
+    parameter integer PRESSURE_ZERO_MV=0,PRESSURE_FULL_MV=3235,
     parameter integer EC11_FILTER_CLOCKS=50000,
     parameter integer EC11_BUTTON_CLOCKS=500000,
     parameter integer EC11_TRANSITIONS_PER_STEP=2,
     parameter EC11_REVERSE=1'b0
 )(
+    input wire joystick_sw_n,
     input wire encoder_a,encoder_b,encoder_sw_n,
     input wire ref_clk, // On-board 50 MHz crystal, V22.
     inout wire mpr_scl, mpr_sda, mpr_b_scl, mpr_b_sda,
@@ -41,10 +51,19 @@ module instrument_top #(
     mpr121_controller touch(.clk(clk),.rst(rst),.scl(mpr_scl),.sda(mpr_sda),
         .scl_b(mpr_b_scl),.sda_b(mpr_b_sda),
         .online(online),.chip_online(chip_online),.touched(touched),.diagnostics());
-    wire pressure_online;
+    wire pressure_online,pressure_sample_valid;
     wire [11:0] pressure_mv;
-    ads1115_controller pressure(.clk(clk),.rst(rst),.scl(pressure_scl),.sda(pressure_sda),
-        .online(pressure_online),.millivolts(pressure_mv),.sample_valid());
+    wire joystick_online,joystick_sample_valid;
+    wire [11:0] joystick_mv;
+    generate if(ENABLE_JOYSTICK) begin: shared_adc
+        ads1115_scanner adc(.clk(clk),.rst(rst),.scl(pressure_scl),.sda(pressure_sda),
+            .pressure_online(pressure_online),.pressure_mv(pressure_mv),.pressure_valid(pressure_sample_valid),
+            .joystick_online(joystick_online),.joystick_mv(joystick_mv),.joystick_valid(joystick_sample_valid));
+    end else begin: pressure_only
+        ads1115_controller pressure(.clk(clk),.rst(rst),.scl(pressure_scl),.sda(pressure_sda),
+            .online(pressure_online),.millivolts(pressure_mv),.sample_valid(pressure_sample_valid));
+        assign joystick_online=0;assign joystick_sample_valid=0;assign joystick_mv=0;
+    end endgenerate
     wire [52:0] core_status;
     wire [44:0] control_status;
     wire [31:0] performance_info,pixel_performance;
@@ -59,11 +78,16 @@ module instrument_top #(
     wire [103:0] voice_levels,pixel_levels;
     wire [12:0] key_lights;
     wire [5:0] sustain_info,pixel_sustain;
-    instrument_core #(.ENABLE_EC11(ENABLE_EC11),
+    instrument_core #(.ENABLE_EC11(ENABLE_EC11),.ENABLE_JOYSTICK(ENABLE_JOYSTICK),
+        .JOYSTICK_BUTTON_CLOCKS(JOYSTICK_BUTTON_CLOCKS),.JOYSTICK_REVERSE(JOYSTICK_REVERSE),
+        .JOYSTICK_BUTTON_ACTIVE_LOW(JOYSTICK_BUTTON_ACTIVE_LOW),.JOYSTICK_CENTER_MV(JOYSTICK_CENTER_MV),
+        .PRESSURE_ZERO_MV(PRESSURE_ZERO_MV),.PRESSURE_FULL_MV(PRESSURE_FULL_MV),
         .EC11_FILTER_CLOCKS(EC11_FILTER_CLOCKS),.EC11_BUTTON_CLOCKS(EC11_BUTTON_CLOCKS),
         .EC11_TRANSITIONS_PER_STEP(EC11_TRANSITIONS_PER_STEP),.EC11_REVERSE(EC11_REVERSE),.DEFAULT_SUSTAIN(TOUCH_DEBUG),
         .DEFAULT_TIMBRE((TOUCH_DEBUG || ENABLE_EC11) ? 2'd1 : 2'd0)) core(.encoder_a(encoder_a),.encoder_b(encoder_b),.encoder_sw_n(encoder_sw_n),
         .sustain_info(sustain_info),.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
+        .joystick_online(joystick_online),.joystick_sample_valid(joystick_sample_valid),
+        .joystick_mv(joystick_mv),.joystick_sw_n(joystick_sw_n),.pressure_sample_valid(pressure_sample_valid),
         .pressure_online(pressure_online),.pressure_mv(pressure_mv),
         .control_rx(control_rx),.control_tx(control_tx),.control_status(control_status),.performance_info(performance_info),.uart_diagnostics(uart_diagnostics),
         .diagnostics_visible(diagnostics_visible),
@@ -115,7 +139,7 @@ module instrument_top #(
         .frame_done(scope_done),.frame_ack(scope_ack),.pixel_clk(pixel_clk),.pixel_rst(video_rst),
         .vertical_blank(blank),.read_address(scope_read_address),.read_value(scope_read_data),.ready(scope_ready));
     wire [23:0] rgb; wire pixel_de,pixel_hs,pixel_vs;
-    instrument_screen #(.ENABLE_EC11(ENABLE_EC11),.TOUCH_DEBUG(TOUCH_DEBUG)) screen(.sustain_info(pixel_sustain),.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
+    instrument_screen #(.ENABLE_JOYSTICK(ENABLE_JOYSTICK),.ENABLE_EC11(ENABLE_EC11),.TOUCH_DEBUG(TOUCH_DEBUG)) screen(.sustain_info(pixel_sustain),.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
         .vertical_blank(blank),.status(pixel_status),.performance_info(pixel_performance),.voice_levels(pixel_levels),.octave_select(pixel_octave),
         .scope_ready(scope_ready),.scope_data(scope_read_data),.scope_address(scope_read_address),
         .visual_ready(visual_ready),.visual_data(visual_read_data),

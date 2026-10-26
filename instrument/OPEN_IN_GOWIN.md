@@ -1,5 +1,7 @@
 # 用高云 IDE 打开默认延音触摸调试工程
 
+**KY-023 摇杆 + EC11 + 单 ADS1115 复用 组合版请打开 `instrument_joystick.gprj`。** 本机已准备 IDE 配置；异机先复制 `config/joystick_process_config.json` 到 `impl/instrument_joystick_process_config.json`。接线与调试见 [摇杆组合版说明](../docs/joystick_controls.md)。
+
 本目录的调试工程入口：**instrument_touch_debug.gprj**。
 
 **使用 EC11 旋钮时请改开 instrument_ec11.gprj**，先将 config/ec11_process_config.json 复制到本地 impl/instrument_ec11_process_config.json。该工程默认关闭延音，旋转调节 16 档、按压切换开关；完整步骤及五脚接线见 [EC11 说明](../docs/ec11_sustain.md)。下面的默认开启步骤专用于没有旋钮的触摸调试工程。

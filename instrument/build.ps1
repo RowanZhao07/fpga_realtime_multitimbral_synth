@@ -1,12 +1,14 @@
-param([string]$GowinShell, [switch]$CheckTools, [switch]$TouchDebug, [switch]$Ec11)
+param([string]$GowinShell, [switch]$CheckTools, [switch]$TouchDebug, [switch]$Ec11, [switch]$Joystick, [switch]$SynthesisOnly)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'tools/toolchain.ps1')
 $GowinShell = Resolve-GowinShell $GowinShell
 if ($CheckTools) { Write-Output "Gowin shell: $GowinShell"; return }
-if($TouchDebug -and $Ec11) { throw 'Choose either -TouchDebug or -Ec11.' }
-$buildBase = if($Ec11) { 'instrument_ec11' } elseif($TouchDebug) { 'instrument_touch_debug' } else { 'instrument' }
+if(($TouchDebug -and $Ec11) -or ($Joystick -and ($TouchDebug -or $Ec11))) { throw 'Choose one build profile.' }
+$buildBase = if($Joystick) { 'instrument_joystick' } elseif($Ec11) { 'instrument_ec11' } elseif($TouchDebug) { 'instrument_touch_debug' } else { 'instrument' }
 $previousBuildProfile = $env:INSTRUMENT_BUILD_PROFILE
-$env:INSTRUMENT_BUILD_PROFILE = if($Ec11) { 'ec11' } elseif($TouchDebug) { 'touch_debug' } else { 'normal' }
+$previousSynthesisOnly = $env:INSTRUMENT_SYNTHESIS_ONLY
+$env:INSTRUMENT_SYNTHESIS_ONLY = if($SynthesisOnly) { '1' } else { '0' }
+$env:INSTRUMENT_BUILD_PROFILE = if($Joystick) { 'joystick' } elseif($Ec11) { 'ec11' } elseif($TouchDebug) { 'touch_debug' } else { 'normal' }
 Push-Location $PSScriptRoot
 try {
     if(!(Test-Path $GowinShell)) { throw "Gowin shell not found: $GowinShell" }
@@ -14,6 +16,7 @@ try {
     & $GowinShell build.tcl 2>&1 | Tee-Object -FilePath build.log
     if($LASTEXITCODE -ne 0) { throw 'Gowin build failed' }
     if(Select-String build.log -Pattern '^ERROR\s' -Quiet) { throw 'Gowin reported errors' }
+    if($SynthesisOnly) { Write-Output "Synthesis completed: $buildBase (no bitstream requested)"; return }
     if(!(Test-Path "impl/pnr/$buildBase.fs")) { throw 'Bitstream was not generated' }
     if((Get-Item "impl/pnr/$buildBase.fs").LastWriteTime -lt $buildStarted) { throw 'Bitstream is stale' }
     $timingReport=Get-Content "impl/pnr/$buildBase.tr" -Raw
@@ -42,4 +45,4 @@ try {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
     Move-Item -LiteralPath $buildFile -Destination $releaseFile -Force
     Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256
-} finally { $env:INSTRUMENT_BUILD_PROFILE = $previousBuildProfile; Pop-Location }
+} finally { $env:INSTRUMENT_SYNTHESIS_ONLY = $previousSynthesisOnly; $env:INSTRUMENT_BUILD_PROFILE = $previousBuildProfile; Pop-Location }

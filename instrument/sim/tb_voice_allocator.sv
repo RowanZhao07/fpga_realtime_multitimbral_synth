@@ -6,6 +6,12 @@ module tb_voice_allocator #(parameter VARIABLE_SUSTAIN=1'b0);
  polyphonic_engine #(.VARIABLE_SUSTAIN(VARIABLE_SUSTAIN)) dut(.sustain_strength(5'd16),.clk(clk),.rst(rst),.sample_ce(ce),.sustain_down(pedal),
  .gates(gates),.octave_select(octave),.timbre(2'd0),.vibrato(1'b0),
  .mixed(mixed),.valid(valid),.voice_count(count),.overrun(overrun));
+`ifdef __ICARUS__
+ // Icarus does not schedule the zero-address case LUT's initial @* evaluation.
+ // Exercise an address transition during reset only; all runtime PCM/deadline
+ // assertions below stay enabled, and XSim uses the original startup sequence.
+ initial begin #1;force dut.address=10'd1;#1;release dut.address;end
+`endif
  integer frames=0,cycles,k,f,max_cycles=0;reg [31:0] c3_phase;
  task frame;
  begin

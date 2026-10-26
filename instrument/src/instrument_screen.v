@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 // Streaming raster renderer: no external memory or processor.
-module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAPER_HOLD_FRAMES=600)(
+module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAPER_HOLD_FRAMES=600)(
     input wire [5:0] sustain_info,
     input wire clk,rst,input wire [10:0] x,input wire [9:0] y,
     input wire de,hs,vs,vertical_blank,input wire [203:0] status,
@@ -198,7 +198,9 @@ module instrument_screen #(parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0
             label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[4] ? "DONE      " : display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "NEXT NOTE ") : "LIVE INPUT",24'h9CAEC9);
             label(x,y,576,524,13,{"RX ",rx_text," ER ",error_text},24'h9CAEC9);
         end
-        if(ENABLE_EC11)
+        if(ENABLE_JOYSTICK)
+            label(x,y,28,568,60,{"EC11 ",display_sustain[5] ? "ON " : "OFF"," L",decimal2({27'd0,display_sustain[4:0]}),"/16 | STICK L/R OCT | HOLD SW VIB | CENTER REARM"},24'hCAD4E6);
+        else if(ENABLE_EC11)
             label(x,y,28,568,40,{"EC11 SUST ",display_sustain[5] ? "ON " : "OFF"," L",decimal2({27'd0,display_sustain[4:0]}),"/16  TURN / PUSH TOGGLE"},24'hCAD4E6);
         else if(TOUCH_DEBUG)
             label(x,y,28,568,36,"DEFAULT SUSTAIN  UART H0 OFF / H1 ON",24'hCAD4E6);

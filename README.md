@@ -14,6 +14,8 @@ Tang Mega 60K NEO（GW5AT-60B）上的纯 HDL 合成器，不使用处理器、M
 
 EC11 旋转调节 **16 档尾音衰减速度**，按压切换延音开关；默认 T1 电钢琴、主音量 50%、延音关闭、03 档。HDMI 显示实际开关和档位，延音开启后松键按所选档位衰减。接线和操作见 [EC11 使用说明](docs/ec11_sustain.md)。实体踏板适配器尚未接入，串口 H0/H1 可控制延音。
 
+新增本地组合工程 **instrument/instrument_joystick.gprj**：KY-023 左右拨动切八度、按住开启颤音，原有 ADS1115 分时采样 AIN0 力敏与 AIN1 摇杆，原压力输入增加滤波和增益渐变，同时保留 EC11 延音。由 **chenxi639** 提出需求，Codex 协助实现与验证；见 [接线与调试指南](docs/joystick_controls.md) 和 [本轮验证报告](docs/joystick_verification.md)。
+
 ## 构建与回归
 
 在仓库根目录执行，工具路径按本机填写：

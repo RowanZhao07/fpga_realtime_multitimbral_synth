@@ -1,6 +1,11 @@
 `timescale 1ns/1ps
 module instrument_core #(
     parameter ENABLE_ECHO=1'b0,
+    parameter ENABLE_JOYSTICK=1'b0,
+    parameter integer JOYSTICK_BUTTON_CLOCKS=500000,
+    parameter JOYSTICK_REVERSE=1'b0, JOYSTICK_BUTTON_ACTIVE_LOW=1'b1,
+    parameter integer JOYSTICK_CENTER_MV=1650,
+    parameter integer PRESSURE_ZERO_MV=0,PRESSURE_FULL_MV=3235,
     parameter ENABLE_EC11=1'b0,
     parameter integer EC11_FILTER_CLOCKS=50000,
     parameter integer EC11_TRANSITIONS_PER_STEP=2,
@@ -19,6 +24,9 @@ module instrument_core #(
     input wire clk, rst, online,
     input wire [17:0] touched,
     input wire [1:0] chip_online,
+    input wire joystick_online,joystick_sample_valid,joystick_sw_n,
+    input wire [11:0] joystick_mv,
+    input wire pressure_sample_valid,
     input wire pressure_online,
     input wire [11:0] pressure_mv,
     input wire control_rx,output wire control_tx,
@@ -96,11 +104,20 @@ module instrument_core #(
         end else if(lamp_test) lamp_test_left<=lamp_test_left-1'b1;
     end
     // One pressure pad is a global expression control. Q9 gain spans 1/4..1,
-    // reaching unity at the measured 3235mV; C1/C2 set maximum playing volume.
-    wire [9:0] pressure_gain;
-    pressure_mapping expression(.millivolts(pressure_mv),.gain(pressure_gain),.bar_width());
+    // reaching unity at the measured 3235 mV by default; C1/C2 set maximum volume.
+    wire [9:0] legacy_pressure_gain;
+    pressure_mapping pressure_curve(.millivolts(pressure_mv),.gain(legacy_pressure_gain),.bar_width());
+    wire [9:0] smooth_pressure_gain;
+    wire [9:0] pressure_gain=ENABLE_JOYSTICK ? smooth_pressure_gain : legacy_pressure_gain;
+    generate if(ENABLE_JOYSTICK) begin: pressure_filter
+        pressure_expression #(.ZERO_MV(PRESSURE_ZERO_MV),.FULL_MV(PRESSURE_FULL_MV)) expression(
+            .clk(clk),.rst(rst),.online(pressure_online),.sample_valid(pressure_sample_valid),
+            .sample_ce(sample_ce),.millivolts(pressure_mv),.gain(smooth_pressure_gain),.filtered_mv());
+    end else begin: no_pressure_filter
+        assign smooth_pressure_gain=10'd512;
+    end endgenerate
     wire [22:0] pressure_product=volume*pressure_gain;
-    wire [12:0] expressive_volume=pressure_online ? pressure_product[21:9] : volume;
+    wire [12:0] expressive_volume=(ENABLE_JOYSTICK || pressure_online) ? pressure_product[21:9] : volume;
     wire signed [18:0] mixed;
     wire signed [15:0] sample;
     reg previous_mode=0;
@@ -127,8 +144,20 @@ module instrument_core #(
     assign sustain_info={sustain_active,encoder_strength};
     assign sustain_active=!audio_reset && online && !spectrum_mode &&
         (sustain_request || (ENABLE_EC11 ? encoder_enabled : remote_sustain));
-    performance_control #(.DEFAULT_TIMBRE(DEFAULT_TIMBRE)) controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),
+    wire joystick_up,joystick_down,joystick_vibrato;
+    generate if(ENABLE_JOYSTICK) begin: joystick_input
+        joystick_control #(.BUTTON_CLOCKS(JOYSTICK_BUTTON_CLOCKS),.REVERSE(JOYSTICK_REVERSE),
+            .BUTTON_ACTIVE_LOW(JOYSTICK_BUTTON_ACTIVE_LOW),.CENTER_MV(JOYSTICK_CENTER_MV)) stick(
+            .clk(clk),.rst(rst),.online(joystick_online),.sample_valid(joystick_sample_valid),
+            .allow_octave(online && !guide_enabled && !spectrum_mode),.millivolts(joystick_mv),
+            .sw_n(joystick_sw_n),.octave_up(joystick_up),.octave_down(joystick_down),
+            .vibrato(joystick_vibrato),.armed());
+    end else begin: no_joystick
+        assign joystick_up=0;assign joystick_down=0;assign joystick_vibrato=0;
+    end endgenerate
+    performance_control #(.ENABLE_JOYSTICK(ENABLE_JOYSTICK),.DEFAULT_TIMBRE(DEFAULT_TIMBRE)) controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),
         .command_valid(command_valid),.command(command),.value(command_value),
+        .joystick_up(joystick_up),.joystick_down(joystick_down),.joystick_vibrato(joystick_vibrato),
         .online(online),.touched(touched),.gates(gates),.timbre(timbre),
         .volume(volume),.octave_select(selected_octave),.vibrato(vibrato),.spectrum_mode(spectrum_mode),.echo_enabled(echo_enabled),.guide_enabled(guide_enabled));
     polyphonic_engine #(.VARIABLE_SUSTAIN(ENABLE_EC11)) engine(.sustain_strength(encoder_strength),.sustain_down(sustain_active),.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
