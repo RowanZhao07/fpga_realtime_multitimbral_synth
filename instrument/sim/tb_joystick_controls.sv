@@ -47,12 +47,21 @@ module tb_joystick_controls;
  guide_set(0);adc(200);if(octave!==1)$fatal(1,"GUIDE exit held");
  left;if(octave!==0)$fatal(1,"GUIDE exit rearm");
  ce=1;touched=18'h20801;ticks(4);
- if(octave!==0 || output_vib || gates!==1)$fatal(1,"Legacy octave/vibrato leaked or note lost");
+ if(octave!==0 || !output_vib || gates!==1)$fatal(1,"C3 vibrato or independent note/octave behavior failed");
  touched=18'hf00;ticks(12);touched=0;ticks(2);
  if(!testmode)$fatal(1,"Four-control calibration lost");
  right;if(octave!==0)$fatal(1,"Test mode manual override");
  sw=0;rst=1;ticks(4);rst=0;ticks(20);if(output_vib)$fatal(1,"Startup pressed");
  sw=1;ticks(12);sw=0;ticks(12);if(!output_vib)$fatal(1,"Startup release recovery");
+ // A loaded GPIO supply can be below 3.3V. A 2.9V supply has ~1.45V
+ // neutral; verify the existing neutral/trigger windows still accept it.
+ sw=1;rst=1;ce=0;touched=0;ticks(4);rst=0;ticks(12);
+ repeat(3)adc(1450);adc(2900);
+ if(octave!==2)$fatal(1,"Loaded-supply high endpoint did not change octave");
+ repeat(3)adc(1450);adc(100);
+ if(octave!==1)$fatal(1,"Loaded-supply low endpoint did not change octave");
+ repeat(3)adc(2500);adc(3300);
+ if(octave!==1)$fatal(1,"5V-supply neutral incorrectly armed joystick");
  $display("ALL TESTS PASSED");$finish;
  end
  initial begin #1000000;$fatal(1,"watchdog");end

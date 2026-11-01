@@ -1,10 +1,13 @@
 `timescale 1ns/1ps
 // Measures digital touch-status -> first nonzero I2S frame, not electrode latency.
-module tb_latency;
+module tb_latency #(parameter EXPRESSION=1'b0);
     reg clk=0;always #10 clk=~clk;
     reg rst=1;reg [17:0] touched=0;
     wire bck,lrck,din;wire [7:0] led;
-    instrument_core dut(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),.sustain_request(1'b0),.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
+    instrument_core #(.ENABLE_EXPRESSION(EXPRESSION),.ENABLE_JOYSTICK(EXPRESSION),.ENABLE_EC11(EXPRESSION)) dut(
+        .joystick_online(1'b0),.joystick_sample_valid(1'b0),.joystick_mv(12'd0),.joystick_sw_n(1'b1),
+        .y_online(1'b0),.y_sample_valid(1'b0),.y_mv(12'd0),.pressure_sample_valid(1'b0),
+        .encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),.sustain_request(1'b0),.clk(clk),.rst(rst),.online(1'b1),.touched(touched),.chip_online(2'b11),
         .control_rx(1'b1),.control_tx(),.control_status(),.pressure_online(1'b0),.pressure_mv(12'd0),
         .dac_bck(bck),.dac_lrck(lrck),.dac_din(din),.led(led),
         .status(),.monitor_sample(),.monitor_ce());
@@ -24,7 +27,7 @@ module tb_latency;
         end
     end
     initial begin
-        f=$fopen("latency.csv","w");
+        f=$fopen(EXPRESSION ? "latency_expression.csv" : "latency.csv","w");
         for(trial=0;trial<8;trial=trial+1) begin
             rst=1;touched=0;measuring=0;seen=0;
             repeat(5) @(negedge clk);rst=0;
@@ -38,4 +41,8 @@ module tb_latency;
         $display("ALL TESTS PASSED");$finish;
     end
     initial begin #500000000;$fatal(1,"Latency watchdog");end
+endmodule
+
+module tb_expression_latency;
+ tb_latency #(.EXPRESSION(1)) suite();
 endmodule

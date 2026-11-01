@@ -1,0 +1,43 @@
+{
+  "size": [
+    160,
+    120
+  ],
+  "colours_per_image": 16,
+  "image_blocks": 38,
+  "palette_blocks": 1,
+  "sources": [
+    {
+      "path": "assets\\wallpapers\\1.jpg",
+      "sha256": "942e8bddfc2803598efa884fb4911e8725ea88bb9dce0df66ea8e62b3796c2fd"
+    },
+    {
+      "path": "assets\\wallpapers\\2.jpg",
+      "sha256": "8b825dc758d026b7d6452508d9f1603cfe06d42e41b300023c363666f74e350b"
+    },
+    {
+      "path": "assets\\wallpapers\\3.jpg",
+      "sha256": "5425b4004c6e4232a780d2ef800914fd4d0983aab9f2382f27a240b98f81bf7a"
+    },
+    {
+      "path": "assets\\wallpapers\\4.jpg",
+      "sha256": "f9496726c7fb4e4e4974f44943158bf283d39468cf1721ff947faac51732ac03"
+    },
+    {
+      "path": "assets\\wallpapers\\5.jpg",
+      "sha256": "3584251f627eb0cb6c0fb9edbaf1e9f95dd3c844facfab84b03bcf6c7762f9aa"
+    },
+    {
+      "path": "assets\\wallpapers\\6.jpg",
+      "sha256": "58ba54afe270521166714a5d6989dcac98fe83d939a1e0e6a47a1fcebc2c59a6"
+    },
+    {
+      "path": "assets\\wallpapers\\7.jpg",
+      "sha256": "44fc1d262aec4bf936fa35dce73f9601d2b9e244654827b5da816174c670e31a"
+    },
+    {
+      "path": "assets\\wallpapers\\8.jpg",
+      "sha256": "23d7a3054472ef1182e119a78412f3e5813e3af647f9c1048dcbd3021d1d188d"
+    }
+  ]
+}

@@ -7,11 +7,14 @@ module tb_ec11_top;
  reg ref_clk=0;always #10 ref_clk=~ref_clk;
  tri1 scl,sda,scl_b,sda_b,pressure_scl,pressure_sda;
  wire bck,lrck,din;wire [7:0] led;wire [2:0] p,n;wire cp,cn,hpd;
+ wire joystick_vcc;
  instrument_top #(.ENABLE_EC11(1),.EC11_FILTER_CLOCKS(4),.EC11_BUTTON_CLOCKS(12)) dut(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(sw),.ref_clk(ref_clk),.mpr_scl(scl),.mpr_sda(sda),.dac_bck(bck),.dac_lrck(lrck),
  .mpr_b_scl(scl_b),.mpr_b_sda(sda_b),.pressure_scl(pressure_scl),.pressure_sda(pressure_sda),
- .control_rx(1'b1),.control_tx(),.led_ser(),.led_srclk(),.led_rclk(),.led_oe_n(),
+ .control_rx(1'b1),.control_tx(),.led_ser(),.led_srclk(),.led_rclk(),.led_oe_n(),.joystick_vcc(joystick_vcc),
  .dac_din(din),.led(led),.tmds_p(p),.tmds_n(n),.tmds_clock_p(cp),.tmds_clock_n(cn),.hpd_en(hpd));
  integer scope_frames=0,fft_writes=0,i;
+ always @(negedge ref_clk)
+ if(joystick_vcc!==1'bz)$fatal(1,"Legacy profile drives joystick supply pad");
  reg [2:0] fast_divider=0;reg fast_sample_ce=0;
  reg [9:0] blank_divider=0;reg fast_blank=0;
  always @(posedge dut.clk) begin

@@ -12,6 +12,12 @@ spec.loader.exec_module(tool)
 
 
 class SerialControlTests(unittest.TestCase):
+    def test_expression_profile_commands(self):
+        for command in ("F0", "F1", "F2", "F3", "Y0", "Y1"):
+            self.assertTrue(tool.valid_command(command), command)
+        for command in ("F4", "F01", "F-1", "Y2", "Y01", "Y-1"):
+            self.assertFalse(tool.valid_command(command), command)
+
     def test_pcb_thirteen_lamp_masks_and_cancel(self):
         for command in ("J0", "J1", "J256", "J4096", "J8191", "J8192"):
             self.assertTrue(tool.valid_command(command), command)

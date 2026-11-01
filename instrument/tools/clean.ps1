@@ -3,11 +3,12 @@
 param([string]$Python='python')
 $ErrorActionPreference='Stop'
 $repoRoot=(Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
-$releases=@('dist/instrument.fs','dist/instrument_touch_debug.fs','dist/instrument_ec11.fs','dist/instrument_joystick.fs' |
-    ForEach-Object { Join-Path $repoRoot $_ } |
-    Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+$releaseDirectory=Join-Path $repoRoot 'dist'
+$releases=@(if(Test-Path -LiteralPath $releaseDirectory) {
+    (Get-ChildItem -LiteralPath $releaseDirectory -File -Filter '*.fs').FullName
+})
 if($releases.Count -eq 0) {
-    throw 'Build a normal, touch-debug, EC11 or joystick release in dist before cleaning intermediates.'
+    throw 'Build instrument_expression.gprj into dist before cleaning intermediates.'
 }
 $releaseHashes=@{}
 foreach($release in $releases) {
@@ -28,8 +29,8 @@ function Get-SafeItem([string]$Path) {
     return $item
 }
 
-# Only named historical/generated directories; never assets, .local, source or .git.
-$directories=@('tmp','backups','led_flow','xsim.dir','.Xil',
+# Only build/simulation caches; preserve archives, evidence, media and releases.
+$directories=@('xsim.dir','.Xil',
     'instrument/impl','instrument/sim/xsim.dir','instrument/sim/.Xil',
     'instrument/sim/output','instrument/tools/__pycache__','instrument/sim/__pycache__')
 $candidates=@()
@@ -45,7 +46,7 @@ foreach($relative in $directories) {
         $candidates+=$item
     }
 }
-foreach($relative in @('.','instrument','instrument/sim')) {
+foreach($relative in @('instrument','instrument/sim')) {
     $folder=Join-Path $repoRoot $relative
     foreach($item in Get-ChildItem -LiteralPath $folder -File -Force) {
         if($item.Extension -in @('.log','.jou','.pb','.wdb','.csv','.ppm','.fs','.bin','.binx','.vg') -or
@@ -71,17 +72,4 @@ foreach($release in $releases) {
         throw "Release checksum changed during cleanup: $release"
     }
 }
-if(!$WhatIfPreference) {
-    # Local verification archives and linked worktrees are outside cleanup's
-    # scope. Do not traverse them or reject their retained reference bitstreams.
-    $bitstreams=@(foreach($entry in Get-ChildItem -LiteralPath $repoRoot -Force) {
-        if($entry.Name -in @('.git','.local')) { continue }
-        if($entry.PSIsContainer) {
-            Get-ChildItem -LiteralPath $entry.FullName -Recurse -File -Filter '*.fs'
-        } elseif($entry.Extension -eq '.fs') { $entry }
-    })
-    if($bitstreams.Count -ne $releases.Count -or @($bitstreams | Where-Object { $_.FullName -notin $releases }).Count -ne 0) {
-        throw 'Unexpected additional bitstreams remain; inspect them manually.'
-    }
-    Write-Output "Clean repository; releases retained: $($releases -join ', ')"
-}
+if(!$WhatIfPreference) { Write-Output "Build caches cleaned; releases and archives retained: $($releases.Count) bitstreams." }

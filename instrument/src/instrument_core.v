@@ -2,6 +2,7 @@
 module instrument_core #(
     parameter ENABLE_ECHO=1'b0,
     parameter ENABLE_JOYSTICK=1'b0,
+    parameter ENABLE_EXPRESSION=1'b0,
     parameter integer JOYSTICK_BUTTON_CLOCKS=500000,
     parameter JOYSTICK_REVERSE=1'b0, JOYSTICK_BUTTON_ACTIVE_LOW=1'b1,
     parameter integer JOYSTICK_CENTER_MV=1650,
@@ -26,6 +27,8 @@ module instrument_core #(
     input wire [1:0] chip_online,
     input wire joystick_online,joystick_sample_valid,joystick_sw_n,
     input wire [11:0] joystick_mv,
+    input wire y_online,y_sample_valid,
+    input wire [11:0] y_mv,
     input wire pressure_sample_valid,
     input wire pressure_online,
     input wire [11:0] pressure_mv,
@@ -42,7 +45,9 @@ module instrument_core #(
     output wire [52:0] status, output wire signed [15:0] monitor_sample,
     output wire monitor_ce, output wire [103:0] voice_levels
 );
-    wire echo_enabled,guide_enabled;
+    wire echo_enabled,guide_enabled,y_enabled,y_armed;
+    wire [1:0] effect_mode;
+    wire signed [15:0] pitch_bend;
     wire [2:0] guide_target;
     wire [8:0] guide_position;
     wire [1:0] guide_octave;
@@ -75,7 +80,7 @@ module instrument_core #(
                 notes[4],notes[10],notes[3],notes[2],notes[9],notes[1],notes[8],notes[0]};
         end
     endfunction
-    uart_control #(.CLOCKS_PER_BIT(UART_CLOCKS_PER_BIT)) remote_control(
+    uart_control #(.ENABLE_EXPRESSION(ENABLE_EXPRESSION),.CLOCKS_PER_BIT(UART_CLOCKS_PER_BIT)) remote_control(
         .clk(clk),.rst(rst),.rx(control_rx),.tx(control_tx),.command_ok(command_ok),
         .command_valid(command_valid),.command(command),.value(command_value),
         .input_error(input_error),.accepted(accepted),.rejected(rejected),.diagnostics(uart_diagnostics));
@@ -89,7 +94,8 @@ module instrument_core #(
         endcase
     end
     assign control_status={rejected,accepted,custom_score,(guide_length>127 ? 7'd127 : guide_length[6:0]),bpm,guide_mask};
-    assign performance_info={voice_count,guide_length,guide_position,guide_rest,guide_playing,guide_finished,4'b0};
+    assign performance_info={voice_count,guide_length,guide_position,guide_rest,guide_playing,guide_finished,
+        (ENABLE_EXPRESSION ? effect_mode : 2'b0),y_armed,y_enabled};
     // A bounded, silent hardware diagnostic independent of touch detection.
     // Preserve L0..255 white-key masks and L256 cancel. J0..8191 addresses
     // physical LED1..13 directly; J8192 cancels. Both expire after five seconds.
@@ -155,15 +161,31 @@ module instrument_core #(
     end else begin: no_joystick
         assign joystick_up=0;assign joystick_down=0;assign joystick_vibrato=0;
     end endgenerate
-    performance_control #(.ENABLE_JOYSTICK(ENABLE_JOYSTICK),.DEFAULT_TIMBRE(DEFAULT_TIMBRE)) controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),
+    generate if(ENABLE_EXPRESSION) begin: pitch_input
+        pitch_expression wheel(.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),
+            .enabled(y_enabled && online && !spectrum_mode),.online(y_online),
+            .sample_valid(y_sample_valid),.millivolts(y_mv),.armed(y_armed),.bend(pitch_bend));
+    end else begin: no_pitch_input
+        assign pitch_bend=0;assign y_armed=0;
+    end endgenerate
+    performance_control #(.ENABLE_EXPRESSION(ENABLE_EXPRESSION),.ENABLE_JOYSTICK(ENABLE_JOYSTICK),.DEFAULT_TIMBRE(DEFAULT_TIMBRE)) controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),
         .command_valid(command_valid),.command(command),.value(command_value),
         .joystick_up(joystick_up),.joystick_down(joystick_down),.joystick_vibrato(joystick_vibrato),
         .online(online),.touched(touched),.gates(gates),.timbre(timbre),
-        .volume(volume),.octave_select(selected_octave),.vibrato(vibrato),.spectrum_mode(spectrum_mode),.echo_enabled(echo_enabled),.guide_enabled(guide_enabled));
-    polyphonic_engine #(.VARIABLE_SUSTAIN(ENABLE_EC11)) engine(.sustain_strength(encoder_strength),.sustain_down(sustain_active),.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
+        .volume(volume),.octave_select(selected_octave),.vibrato(vibrato),.spectrum_mode(spectrum_mode),
+        .echo_enabled(echo_enabled),.guide_enabled(guide_enabled),.effect_mode(effect_mode),.y_enabled(y_enabled));
+    polyphonic_engine #(.ENABLE_PITCH_BEND(ENABLE_EXPRESSION),.VARIABLE_SUSTAIN(ENABLE_EC11)) engine(.pitch_bend(spectrum_mode ? 16'sd0 : pitch_bend),.sustain_strength(encoder_strength),.sustain_down(sustain_active),.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
         .timbre(spectrum_mode ? 2'b0 : timbre),.octave_select(octave_select),.vibrato(vibrato),
         .mixed(mixed),.valid(valid),.active(active),.voice_levels(voice_levels),.voice_count(voice_count),.overrun(engine_overrun));
-    audio_output output_stage(.clk(clk),.rst(audio_reset),.valid(valid),.mixed(mixed),
+    wire effects_valid;
+    wire signed [18:0] effects_mix;
+    generate if(ENABLE_EXPRESSION) begin: effects
+        expression_effects processor(.clk(clk),.rst(audio_reset),.valid(valid),.mixed(mixed),
+            .mode(effect_mode),.calibration(spectrum_mode),.valid_out(effects_valid),.result(effects_mix));
+    end else begin: no_effects
+        assign effects_valid=valid;assign effects_mix=mixed;
+    end endgenerate
+    audio_output output_stage(.clk(clk),.rst(audio_reset),.valid(effects_valid),.mixed(effects_mix),
         .volume(spectrum_mode ? 13'd2048 : expressive_volume),.calibration(spectrum_mode),.echo_enable((ENABLE_ECHO || echo_enabled) && !spectrum_mode),
         .sample(sample),.clipped(clipped),.limited(limited));
     i2s_transmitter transmitter(.clk(clk),.rst(rst),.sample(sample),

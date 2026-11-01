@@ -1,4 +1,76 @@
-# 单 ADS1115 复用、摇杆与压力输入验证（2026-10-26）
+# 单 ADS1115 复用、摇杆与压力输入验证
+
+## 2026-10-31 临时 HDMI 接线诊断版
+
+针对用户反馈 TOUCH 多数时间 OFFLINE、ADC OFF 且拔掉摇杆无改善，新增独立入口 `instrument_wiring_debug.gprj` / `build.ps1 -WiringDebug`。页面直接显示两块 MPR121 与 ADS1115 各自状态、E14/E13、A16/A15、A20/B20、最近空闲电平、保留的错误原因与饱和失败次数。沿用原 I²C 协议、重试和 GPIO 供电配置；ADC 补充错误记录，空闲电平仅在主机释放总线并等待同步稳定后更新。
+
+XSim 2025.1 配合高云 GW5A 原语完成 **7 项测试，全部通过**：`tb_i2c_recovery`、`tb_shared_ads1115`、`tb_touch_link`、`tb_wiring_screen`、`tb_wiring_top`、`tb_screen_feedback`、`tb_joystick_top`。静音模式调整后重跑后四项，仍全部通过。覆盖真实总线模型的 NACK、SCL/SDA 低电平、ADC 配置/等待超时、错误保留、三路独立状态到跨时钟邮箱及帧锁存、全部引脚/数字标签、完整 800×600 三拍光栅，以及正常演奏入口的音区/颤音/压力/琴键和显示回归。
+
+该临时入口将音频/演奏控制核心保持复位，屏幕标有 SILENT，三路外设仍正常轮询。不修改原演奏入口的复位行为。首轮保留完整合成器的诊断构建有 4 个 setup 违规端点（最差压力换算 -4.784ns），未发布；改为专用静音诊断模式后，完整综合、布局布线通过，setup/hold 违规均为 0，最小余量 setup 4.928ns、hold 0.247ns、recovery 0.310ns、removal 0.589ns、pulse width 6.538ns。未放宽约束，资源 Logic 3262/59904、Register 1328/60780、DSP 1.5/118。
+
+- 诊断位流：`dist/instrument_wiring_debug.fs`，17,313,107 字节。
+- SHA256：`6afad0da15278896df702fe318774b25d8142f46c539539a92edbf8d1a5cd732`。
+- 原演奏位流 `dist/instrument_joystick.fs` 保持 SHA256 `5c3af525babbcf36145bc6cbde6af084b686594899e678a83238a33d02515f85`，可下载恢复演奏。
+- 本机证据：`.local/verification/wiring-debug-20261031/`，包含测试、最终时序与引脚报告、仿真画面及首次失败报告。图像为故障注入仿真样例，不是实物屏幕读数。
+- 未执行硬件下载；需要用户下载后反馈三行状态，不能由仿真结果宣布导线故障已经定位或修复。
+
+## 2026-10-30 J13-9 GPIO 供电版
+
+用户按电阻测量步骤反馈 20kΩ 档显示 2.6，按约 2.6kΩ 纯电阻负载估算，3.3V 下电流约 1.27mA；这不是带电电流实测，也不证明外部线束无误。按用户选择，新增 `joystick_vcc` 输出：组合工程配置后恒高，非摇杆工程高阻；约束为 J13-9 / B16、LVCMOS33、3.3V、DRIVE=8、PULL_MODE=NONE。只允许给这一只低功耗摇杆单独供电，必须断开原 5V 及其他供电源，具体接线和带载检查见[使用说明](joystick_controls.md)。未改回中/方向阈值。
+
+本机 XSim 2025.1 配合高云 GW5A 原语重新执行 **3 项测试，全部通过**：`tb_joystick_controls`、`tb_joystick_top`、`tb_ec11_top`。覆盖新增供电脚在组合版持续为高、旧 EC11 版为高阻，以及 2.9V 供电模型下 1.45V 回中、两端切八度和 2.5V 非回中检测；同时保留原顶层音频/显示断言。仿真不能验证 GPIO 实际电压、电流或外部接线。
+
+Gowin 1.9.12.03 完整综合、布局布线、位流生成通过，setup / hold 违规端点均为 0。最小余量：setup 0.159ns、hold 0.047ns、recovery 0.310ns、removal 0.640ns、pulse width 5.594ns。最终网表为 VCC 驱动的 OBUF，最终引脚报告确认 B16 / Bank 1 为输出、LVCMOS33、DRIVE=8、无弱上拉。保留已有位宽截取、优化和通用时钟布线告警。
+
+- 当前位流：`dist/instrument_joystick.fs`，19,336,587 字节，2026-10-30 23:28 生成。
+- SHA256：`5c3af525babbcf36145bc6cbde6af084b686594899e678a83238a33d02515f85`。
+- 旧同名位流没有 J13-9 供电输出，须下载这次新文件；下载方式仍为 GW5AT-60B / SRAM Program。
+- 用户决定自行下载观察，本轮未执行硬件下载；带载电压、外部接线和左右切八度的实物验收待完成。
+- 本机证据：`.local/verification/joystick-gpio-power-20261030/`，包含三个测试日志、构建日志、最终时序/引脚报告、源码与位流哈希，并保留先前无 GPIO 供电版位流。
+
+## 2026-10-30 先前固定电源方案与重新构建（无 GPIO 供电）
+
+用户确认当前摇杆版 HDMI 有 STICK 提示，按压 SW 可切换 VIB，但 GUIDE OFF 时左右不能切八度；摇杆实际接在 PCB 5V。查图确认可将摇杆独立电源线移到开发板 J8/J9 的第 1 或 2 脚（固定 +3V3），无需新增 GPIO 供电端口。接线、回中电压和上板检查见[使用说明](joystick_controls.md)。3.3V 改接后的效果尚待用户实测，不把供电原因推断写作已修复。
+
+本轮 RTL、约束、工程及测试源文件与 2026-10-29 验证记录的 SHA256 全部一致，未改中位阈值。按用户要求重新执行完整综合、布局布线和时序检查，通过；setup / hold 违规端点均为 0。最小余量为 setup 0.159ns、hold 0.047ns、recovery 0.310ns、removal 0.640ns、pulse width 5.594ns。资源与前次相同，保留既有告警。
+
+- 当时位流：`dist/instrument_joystick.fs`，19,336,587 字节；已被上方 GPIO 供电版替换。
+- SHA256：`3eee278324c16324a612479f336e0292ea8a30006269134e38100699d1449cb9`。
+- USB Debugger A 扫描成功，发现 1 个 JTAG 器件，IDCODE `0x0001481B`；原 Programmer 设置为 GW5AT-60B / SRAM Program，文件路径为上述组合版。
+- 本轮没有重新运行 RTL 仿真；先前通过项有源码哈希一致性支持。
+- 用户决定自行改接、下载和观察效果；本轮未执行 SRAM 下载，改接完成与左右切八度结果未确认。
+- 本机证据：`.local/verification/joystick-20261030/`，包含基线哈希、重新构建日志、时序/资源报告和 `verification.json`。
+
+## 2026-10-29 本机合入与复核
+
+`feature/joystick-shared-adc` 的 chenxi639 原提交 `85118b9` 已快进合入本地 main，保留 `1c9400b` 的曲谱和音量更新。合入后补充了当前工程入口和其他模块的逐根接线说明，并修复完整布局布线暴露的两处时序问题。外设管脚与时钟约束均保持原样。
+
+本机使用 Gowin 1.9.12.03、XSim 2025.1 和 GW5A 官方原语模型，重新执行下表所列的 **13 项 RTL 测试，全部通过**。包括共享 ADC 的协议及默认更新率、摇杆/压力控制、真实音频时钟下的新旧八度、完整顶层、EC11、GUIDE、琴键反馈和输出幅度。每通道模型采样间隔仍为 6.65048 ms。未将队友机器上的 Icarus 结果替代本机结果，也未宣称全套回归通过。
+
+首轮布局布线发现 21 个 setup 违规端点：压力滤波值到增益的组合换算最差 -7.242 ns，屏幕长提示行的字符选择/字形路径 -2.362 ns；hold 无违规。构建脚本阻止这份位流进入 dist。压力换算改为缩放、定值除法、限幅三步流水，保留原整数映射与逐音频帧增益渐变，只增加三个 50 MHz 时钟的换算延迟；HDMI 将相同的 60 字符提示拆成三个短标签，保持位置、内容和原三拍像素流水。没有放宽时序约束或关闭正式工程的 hold 修正。
+
+修复后重新执行 **5 项 RTL 测试，全部通过**：tb_pressure_expression、tb_joystick_core、tb_joystick_top、tb_screen_feedback、tb_video。其中新增 3235 mV 标定的 0～4095 mV 全范围升降遍历，以及底部全部 60 字符逐格检查；完整 800×600 光栅、TMDS 和原三拍显示流水保持通过。
+
+本机完整构建命令：`./instrument/build.ps1 -Joystick -GowinShell D:/Gowin/Gowin_V1.9.12.03_x64/IDE/bin/gw_sh.exe`。修复后综合、布局布线与全部时序检查通过，setup/hold 违规端点均为 0。
+
+| 时序检查 | 最小余量 |
+|---|---:|
+| Setup | 0.159 ns |
+| Hold | 0.047 ns |
+| Recovery | 0.310 ns |
+| Removal | 0.640 ns |
+| 最小脉宽 | 5.594 ns |
+
+Logic 29240/59904、Register 7297/60780、BSRAM 35/118、DSP 33.5/118。保留已有位宽截取、优化及 ref_clk_d 通用时钟布线告警；未全局屏蔽告警或改变时钟要求。
+
+- 当前组合版位流：`dist/instrument_joystick.fs`，19,336,587 字节，2026-10-29 22:09（北京时间）生成。
+- SHA256：`eeedb735262fd85e0e0ec147d990a3441935ba98b340e05b4d61aabaad7b544b`。
+- 下载方式：GW5AT-60B → SRAM Program。原 `instrument_ec11.fs` 不包含摇杆功能。
+- 实物烧录、模拟输入噪声、摇杆中位/方向和整机延迟验收尚未执行。
+
+本机证据保存于 `.local/verification/joystick-20261029/`，包含合入时的 13 项日志、timing-fix 下的 5 项复核日志、最终源码/位流哈希和时序报告。first-build-failed 保留首轮失败报告，不作为下载版本；位流与工具产物不进入 Git。
+
+## 队友初始验证记录（2026-10-26）
 
 基线：远端 main `1c9400b`，新工作分支 `feature/joystick-shared-adc`。包含最新《遇见》GUIDE、音频输出标定和用户实测 3235 mV 压力满量程。需求与贡献者：**chenxi639 <chentseng908@gmail.com>**；Codex 协助实现、仿真与报告。本轮提交工程源码和说明，不生成新位流或烧录。
 

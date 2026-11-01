@@ -29,7 +29,7 @@ module tb_joystick_core;
  if(dut.engine.steps[1]!==46025656 || dut.voice_count<2)$fatal(1,"New C5 / old C4 tail");
  sw=0;ticks(24);if(!dut.vibrato)$fatal(1,"Pressed vibrato integration");
  sw=1;ticks(24);if(dut.vibrato)$fatal(1,"Released vibrato integration");
- touched=18'h801;frames(2);if(dut.vibrato)$fatal(1,"Legacy C3 vibrato leaked");touched=1;
+ touched=18'h801;frames(2);if(!dut.vibrato)$fatal(1,"C3 vibrato did not work alongside joystick");touched=1;
  repeat(48)pressure(0);frames(500);
  if(dut.pressure_gain!==128 || dut.expressive_volume!==512)$fatal(1,"Pressure zero integration");
  repeat(64)pressure(3235);frames(500);

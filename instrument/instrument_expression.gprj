@@ -4,13 +4,19 @@
 <Version>5</Version>
 <Device name="GW5AT-60B" pn="GW5AT-LV60PG484AC1/I0">gw5at60b-002</Device>
 <FileList>
+<File path="src/display_gain.v" type="file.verilog" enable="1"/>
+<File path="src/wallpaper_rom.v" type="file.verilog" enable="1"/>
+<File path="src/wallpaper_renderer.v" type="file.verilog" enable="1"/>
+<File path="src/lissajous_capture.v" type="file.verilog" enable="1"/>
+<File path="src/pitch_expression.v" type="file.verilog" enable="1"/>
+<File path="src/expression_effects.v" type="file.verilog" enable="1"/>
 <File path="src/ads1115_scanner.v" type="file.verilog" enable="1"/>
 <File path="src/pressure_mapping.v" type="file.verilog" enable="1"/>
 <File path="src/joystick_control.v" type="file.verilog" enable="1"/>
 <File path="src/pressure_expression.v" type="file.verilog" enable="1"/>
 <File path="src/ec11_sustain.v" type="file.verilog" enable="1"/>
 <File path="src/board_clock.v" type="file.verilog" enable="1"/>
-<File path="config/ec11_top.vh" type="file.verilog" enable="1"/>
+<File path="config/expression_top.vh" type="file.verilog" enable="1"/>
 <File path="src/instrument_core.v" type="file.verilog" enable="1"/>
 <File path="src/i2c_register_master.v" type="file.verilog" enable="1"/>
 <File path="src/mpr121_controller.v" type="file.verilog" enable="1"/>

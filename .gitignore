@@ -28,6 +28,14 @@ __pycache__/
 /backups/
 /tmp/
 /.local/
+/videos/
+/outputs/
+# Local stage evidence (includes rendered pages of the supplied competition PDF).
+/outputs/acceptance-20261031/
+/outputs/ui-20261101/
+/outputs/expression-ui-v2/
+/outputs/ui-3x-20261101/
+/outputs/expression-ui-v2-3x/
 # Generated image histories stay local; only current previews are tracked.
 /assets/simulation/history/
 /assets/simulation/frames/

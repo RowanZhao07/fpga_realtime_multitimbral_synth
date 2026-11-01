@@ -1,11 +1,12 @@
 `timescale 1ns/1ps
 // 32 independent note states rendered through one shared mathematical wavetable.
-module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0)(
+module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITCH_BEND=1'b0)(
     input wire [4:0] sustain_strength,
     input wire sustain_down,clk,rst,sample_ce,
     input wire [12:0] gates,
     input wire [1:0] timbre,octave_select,
     input wire vibrato,
+    input wire signed [15:0] pitch_bend,
     output reg signed [18:0] mixed=0,
     output reg valid=0,
     output reg [12:0] active=0,
@@ -36,6 +37,9 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0)(
     reg [12:0] previous_gates=0,frame_gates=0,rising=0;
     reg [1:0] frame_octave=1,frame_timbre=0;
     reg frame_vibrato=0;
+    reg signed [15:0] frame_bend=0;
+    reg signed [48:0] bend_product=0;
+    reg signed [32:0] bent_step=0;
     reg [23:0] lfo_phase=0;
     wire [7:0] folded=lfo_phase[23] ? ~lfo_phase[22:15] : lfo_phase[22:15];
     wire signed [8:0] lfo=$signed({1'b0,folded})-9'sd128;
@@ -92,6 +96,7 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0)(
             0:if(sample_ce) begin
                 frame_gates<=gates;rising<=gates & ~previous_gates;previous_gates<=gates;
                 frame_octave<=octave_select;frame_timbre<=timbre;frame_vibrato<=vibrato;
+                frame_bend<=ENABLE_PITCH_BEND ? pitch_bend : 16'sd0;
                 lfo_phase<=lfo_phase+24'd1718;
                 for(n=0;n<32;n=n+1) begin
                     if(occupied[n] && age[n]!=32'hffffffff) age[n]<=age[n]+1'b1;
@@ -129,9 +134,11 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0)(
             4:begin
                 address<={preset[slot],phase[slot][31:24]};fraction<=phase[slot][23:16];
                 deviation<=$signed({1'b0,(steps[slot]>>13)})*lfo;
+                bend_product<=$signed({1'b0,steps[slot]})*frame_bend;
                 state<=5;
             end
-            5:begin base<=wave;address<={preset[slot],(phase[slot][31:24]+8'd1)};state<=6;end
+            5:begin base<=wave;address<={preset[slot],(phase[slot][31:24]+8'd1)};
+                bent_step<=$signed({1'b0,steps[slot]})+(bend_product>>>16);state<=6;end
             6:begin slope<=$signed(wave)-$signed(base);state<=7;end
             7:begin interp<=slope*$signed({1'b0,fraction});address<={2'b0,phase[slot][31:24]};state<=8;end
             8:begin rich_wave<=$signed(base)+((interp+26'sd128)>>>8);sine_base<=wave;
@@ -149,7 +156,7 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0)(
                     accumulator<=accumulator+(envelope_product>>>16)+(fading_tail>>>3);
                     last_sample[slot]<=envelope_product>>>16;
                     if(fade_left[slot]!=0) fade_left[slot]<=fade_left[slot]-1'b1;
-                    phase[slot]<=phase[slot]+steps[slot]+(frame_vibrato ? deviation[31:0] : 32'd0);
+                    phase[slot]<=phase[slot]+(ENABLE_PITCH_BEND ? bent_step[31:0] : steps[slot])+(frame_vibrato ? deviation[31:0] : 32'd0);
                     if(brightness[slot]>color_floor+color_decay) brightness[slot]<=brightness[slot]-color_decay;
                     else brightness[slot]<=color_floor;
                     if(sounding[slot]) begin

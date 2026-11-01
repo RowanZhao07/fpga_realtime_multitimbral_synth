@@ -8,11 +8,12 @@ module tb_i2c_recovery;
     assign scl=hold_scl ? 1'b0 : 1'bz;
     assign sda=hold_sda ? 1'b0 : 1'bz;
     wire busy,done,failed;wire [3:0] error_code;
+    wire [2:0] idle_lines;
     integer recovery_edges=0,stops=0;
     i2c_register_master #(.QUARTER(8),.TIMEOUT(5000)) dut(
         .clk(clk),.rst(rst),.start(start),.reading(1'b0),.device_address(7'h5a),
         .address(8'h41),.value(8'd12),.busy(busy),.done(done),.failed(failed),
-        .error_code(error_code),.result(),.scl(scl),.sda(sda));
+        .error_code(error_code),.idle_lines(idle_lines),.result(),.scl(scl),.sda(sda));
     i2c_recovery_write_slave slave(.scl(scl),.sda(sda),.present(present));
     always @(posedge scl) if(hold_sda) recovery_edges=recovery_edges+1;
     always @(negedge scl) if(recoverable && recovery_edges==9) hold_sda=0;
@@ -31,6 +32,8 @@ module tb_i2c_recovery;
         repeat(5) @(negedge clk);rst=0;
         request(0);
         if(slave.writes!=1) $fatal(1,"Normal transaction failed");
+        repeat(20) @(negedge clk);
+        if(idle_lines!==3'b111)$fatal(1,"Released idle lines not sampled");
         // Peripheral state survives FPGA reset: release SDA only after 9 clocks.
         @(negedge clk);hold_sda=1;recoverable=1;recovery_edges=0;rst=1;
         repeat(5) @(negedge clk);rst=0;stop_before=stops;
@@ -55,8 +58,12 @@ module tb_i2c_recovery;
         @(negedge clk);recoverable=0;hold_sda=1;recovery_edges=0;
         request(3);
         if(recovery_edges!=10 || sda!==0) $fatal(1,"Permanent SDA fault must be bounded (9 clocks plus STOP rise)");
+        repeat(20) @(negedge clk);
+        if(idle_lines!==3'b110)$fatal(1,"SDA-low idle evidence lost");
         hold_sda=0;repeat(20) @(negedge clk);
-        hold_scl=1;request(2);hold_scl=0;repeat(20) @(negedge clk);
+        hold_scl=1;request(2);repeat(20) @(negedge clk);
+        if(idle_lines!==3'b101)$fatal(1,"SCL-low idle evidence lost");
+        hold_scl=0;repeat(20) @(negedge clk);
         present=0;request(1);present=1;request(0);
         $display("PASS: stretched clear, permanent SDA/SCL faults, NACK classification and recovery");
         $display("ALL TESTS PASSED");$finish;

@@ -1,6 +1,8 @@
 `timescale 1ns/1ps
 // Streaming raster renderer: no external memory or processor.
-module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAPER_HOLD_FRAMES=600)(
+module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRESSION=1'b0,parameter WIRING_DEBUG=1'b0,parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=1'b0,parameter TOUCH_DEBUG=1'b0, parameter integer WALLPAPER_HOLD_FRAMES=600)(
+    input wire [279:0] isolation_status,
+    input wire [59:0] wiring_status,
     input wire [5:0] sustain_info,
     input wire clk,rst,input wire [10:0] x,input wire [9:0] y,
     input wire de,hs,vs,vertical_blank,input wire [203:0] status,
@@ -8,6 +10,7 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
     input wire [1:0] octave_select,
     input wire [31:0] performance_info,
     input wire scope_ready,input wire [7:0] scope_data,output wire [8:0] scope_address,
+    input wire liss_ready,liss_data,output wire [13:0] liss_address,
     input wire visual_ready,input wire [7:0] visual_data,
     output wire [9:0] visual_address,
     output reg [23:0] rgb=0,output reg out_de=0,out_hs=0,out_vs=0);
@@ -18,9 +21,26 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
     reg signed [7:0] scope_plot=0,previous_scope=0;
     reg scope_ready0=0,scope_plot_ready=0;
     reg ready0=0,plot_ready=0;
-    wire [23:0] wallpaper_rgb=24'h0B1220;
-    wire [2:0] wallpaper_index=0;
+    wire [23:0] wallpaper_rgb;
+    wire [2:0] wallpaper_index;
+    generate if(ENABLE_EXPRESSION && !WIRING_DEBUG && !TOUCH_ISOLATION) begin: background
+        wallpaper_renderer #(.HOLD_FRAMES(WALLPAPER_HOLD_FRAMES)) wallpaper(
+            .clk(clk),.rst(rst),.vertical_blank(vertical_blank),.x(x),.y(y),
+            .rgb(wallpaper_rgb),.image_index(wallpaper_index));
+    end else begin: plain_background
+        assign wallpaper_rgb=24'h0B1220;assign wallpaper_index=0;
+    end endgenerate
+    reg liss_plot=0,liss_ready0=0,liss_plot_ready=0;
+    wire [10:0] liss_x=x-11'd360;
+    wire [9:0] liss_y=y-10'd244;
+    assign liss_address={liss_y[6:0],liss_x[6:0]};
     reg [203:0] display_status=0;
+    reg [59:0] display_wiring=0;
+    reg [279:0] display_isolation=0;
+    reg [103:0] isolation_a_text[0:6],isolation_b_text[0:6];
+    wire [2:0] isolation_stage=display_isolation[226:224];
+    wire isolation_done=display_isolation[232];
+    reg [55:0] joystick_text="0.000 V";
     reg [5:0] display_sustain=0;
     reg [31:0] display_performance=0;
     reg [103:0] display_levels=0;
@@ -45,12 +65,14 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
     wire [12:0] full_volume={volume,display_status[203:196]};
     wire [20:0] volume_bar_product=full_volume*8'd192;
     wire online=display_status[23],vibrato=display_status[24],echo_on=display_status[25];
+    wire touch_fault_visible=ENABLE_EXPRESSION && !online;
     wire test_on=display_status[26],guide_on=display_status[27];
     wire lamp_test=display_status[39];
     wire [8:0] position=display_performance[15:7];
     wire [10:0] plot_x=x-11'd28;
     assign visual_address={y>=396,plot_x[8:0]};
-    assign scope_address=plot_x[8:0];
+    // Keep the 512-sample / 10.49 ms capture; show alternate points in 256 px.
+    assign scope_address=ENABLE_EXPRESSION ? {plot_x[7:0],1'b0} : plot_x[8:0];
     wire [10:0] key_offset=px-11'd28;
     wire [2:0] key_index=key_offset[8:6];
     wire [7:0] key_level=display_levels>>(key_index*8);
@@ -145,9 +167,97 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
             end
         end
     endtask
-    integer key_label,sharp_label;
+    function [63:0] fault_name;
+        input [3:0] code;
+        begin case(code)
+            0:fault_name="NONE    ";1:fault_name="NO ACK  ";
+            2:fault_name="SCL LOW ";3:fault_name="SDA BUS ";
+            4:fault_name="TIMEOUT ";5:fault_name="CONFIG  ";
+            6:fault_name="OVERCUR ";7:fault_name="NOT RDY ";
+            default:fault_name="UNKNOWN ";
+        endcase end
+    endfunction
+    function [7:0] idle_digit;
+        input valid,level;
+        begin idle_digit=valid ? (level ? "1" : "0") : "-";end
+    endfunction
+    function [87:0] isolation_name;
+        input integer n;
+        begin case(n)
+            0:isolation_name="0 BASE     ";1:isolation_name="1 CORE     ";
+            2:isolation_name="2 I2S      ";3:isolation_name="3 FFT/SCOPE";
+            4:isolation_name="4 NO LED   ";5:isolation_name="5 FULL     ";
+            default:isolation_name="6 BASE     ";
+        endcase end
+    endfunction
+    // Short labels keep the existing three-stage text pipeline timing bounded.
+    task wiring_row;
+        input [9:0] top;
+        input [95:0] name;
+        input [23:0] scl_pin,sda_pin;
+        input connected;
+        input [15:0] info;
+        begin
+            label(x,y,40,top,12,name,24'hC8BCFF);
+            label(x,y,656,top,7,connected ? "ONLINE " : "OFFLINE",connected ? 24'h48E0C0 : 24'hFFA3A8);
+            label(x,y,40,top+28,7,{"SCL ",scl_pin},24'hCAD4E6);
+            label(x,y,148,top+28,1,idle_digit(info[14],info[13]),24'hF1F1FA);
+            label(x,y,220,top+28,7,{"SDA ",sda_pin},24'hCAD4E6);
+            label(x,y,328,top+28,1,idle_digit(info[14],info[12]),24'hF1F1FA);
+            label(x,y,412,top+28,11,"IDLE SAMPLE",24'h9CAEC9);
+            label(x,y,40,top+52,7,{"LAST E",hex_character(info[3:0])},24'hCAD4E6);
+            label(x,y,148,top+52,8,fault_name(info[3:0]),info[3:0]!=0 ? 24'hF2BE55 : 24'h48E0C0);
+            label(x,y,360,top+52,8,{"FAIL ",decimal3({24'd0,info[11:4]})},24'hCAD4E6);
+        end
+    endtask
+    integer key_label,sharp_label,isolation_row,isolation_format;
     always @* begin
         text_visible=0;text_dx=0;text_dy=0;text_length=0;text_line=0;text_ink=0;
+        if(TOUCH_ISOLATION) begin
+            label(x,y,28,24,18,"TOUCH ISOLATION T1",24'hF1F1FA);
+            label(x,y,520,24,18,isolation_done ? "DONE / DATA FROZEN" : "AUTO / HANDS OFF  ",24'hF2BE55);
+            label(x,y,28,52,15,{"A",digit(display_status[50])," B",digit(display_status[51])," ADC",digit(adc_online)," R",decimal3({24'd0,display_isolation[247:240]})},24'hCAD4E6);
+            label(x,y,280,52,15,{"MODE ",digit({29'd0,isolation_stage})," LEFT ",decimal2({27'd0,display_isolation[231:227]}),"S"},24'hCAD4E6);
+            label(x,y,556,52,10,isolation_done ? "FROZEN    " : display_isolation[233] ? "SETTLING  " : "MEASURING ",24'h9CAEC9);
+            label(x,y,28,80,21,{"FFT ",hex_character(display_isolation[263:260]),hex_character(display_isolation[259:256])," FR ",hex_character(display_isolation[271:268]),hex_character(display_isolation[267:264])," SCOPE ",hex_character(display_isolation[279:276]),hex_character(display_isolation[275:272])},24'h9CAEC9);
+            label(x,y,28,112,5,"STAGE",24'hC8BCFF);
+            label(x,y,196,112,7,"TOUCH A",24'hC8BCFF);
+            label(x,y,420,112,7,"TOUCH B",24'hC8BCFF);
+            label(x,y,652,112,6,"WINDOW",24'hC8BCFF);
+            for(isolation_row=0;isolation_row<7;isolation_row=isolation_row+1) begin
+                label(x,y,28,144+44*isolation_row,11,isolation_name(isolation_row),24'hF1F1FA);
+                if(display_isolation[isolation_row*32+28]) begin
+                    label(x,y,196,144+44*isolation_row,13,isolation_a_text[isolation_row],
+                        display_isolation[isolation_row*32+24] ? 24'hFFA3A8 : 24'h48E0C0);
+                    label(x,y,420,144+44*isolation_row,13,isolation_b_text[isolation_row],
+                        display_isolation[isolation_row*32+25] ? 24'hFFA3A8 : 24'h48E0C0);
+                end else begin
+                    label(x,y,196,144+44*isolation_row,13,"--- NOT YET  ",24'h9CAEC9);
+                    label(x,y,420,144+44*isolation_row,13,"--- NOT YET  ",24'h9CAEC9);
+                end
+                label(x,y,652,144+44*isolation_row,7,isolation_done || isolation_row<isolation_stage ? "DONE   " :
+                    isolation_row==isolation_stage ? "ACTIVE " : "WAIT   ",isolation_row==isolation_stage ? 24'hF2BE55 : 24'h9CAEC9);
+            end
+            label(x,y,28,456,40,"F FAILS  E ERROR  U SEEN UP  D SEEN DOWN",24'h9CAEC9);
+            label(x,y,28,484,35,"2S SETTLE + 20S COUNT IN EACH STAGE",24'h9CAEC9);
+            label(x,y,28,512,36,"NO TOUCH / NO REWIRING / ABOUT 3 MIN",24'hCAD4E6);
+            label(x,y,28,552,38,isolation_done ? "DONE: TAKE ONE FULL-SCREEN PHOTO      " : "AUTO TEST: KEEP WIRING UNCHANGED      ",24'hF2BE55);
+        end else if(WIRING_DEBUG) begin
+            label(x,y,28,24,22,"WIRING CHECK / GPIO V1",24'hF1F1FA);
+            label(x,y,28,48,28,"B16: JOYSTICK SUPPLY ENABLED",24'h9CAEC9);
+            label(x,y,656,24,6,"SILENT",24'hF2BE55);
+            wiring_row(88,"TOUCH A 0X5A","E14","E13",display_status[50],display_wiring[15:0]);
+            wiring_row(196,"TOUCH B 0X5A","A16","A15",display_status[51],display_wiring[31:16]);
+            wiring_row(304,"ADC     0X48","A20","B20",adc_online,display_wiring[47:32]);
+            label(x,y,40,408,9,"PRESSURE ",24'hCAD4E6);
+            label(x,y,160,408,7,adc_online ? pressure_text : "-.--- V",24'hF1F1FA);
+            label(x,y,376,408,9,"JOYSTICK ",24'hCAD4E6);
+            label(x,y,496,408,7,adc_online ? joystick_text : "-.--- V",24'hF1F1FA);
+            label(x,y,28,456,31,"LAST ERROR STAYS AFTER RECOVERY",24'hF2BE55);
+            label(x,y,28,480,37,"FAIL COUNTS FAILED REQUESTS / MAX 255",24'h9CAEC9);
+            label(x,y,28,520,27,"LEVEL 1 DOES NOT PROVE 3.3V",24'h9CAEC9);
+            label(x,y,28,552,33,"REPORT ALL THREE ROWS WHEN FAILED",24'hCAD4E6);
+        end else begin
         label(x,y,28,24,28,"TANG MEGA / POLYPHONIC SYNTH",24'hF1F1FA);
         label(x,y,28,44,20,{"32 VOICES / OCTAVE ",octave_digit},24'h9CAEC9);
         case(timbre)
@@ -157,14 +267,20 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
             3:label(x,y,416,24,10,"TONE METAL",24'hC8BCFF);
         endcase
         label(x,y,416,44,9,"48.8K I2S",24'h9CAEC9);
+        if(ENABLE_EXPRESSION) label(x,y,640,24,10,"EXPR U2 3X",24'hC8BCFF);
         label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[4] ? "DONE      " : display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "NEXT NOTE ") : "LIVE INPUT",24'hC8BCFF);
         for(key_label=0;key_label<8;key_label=key_label+1)
             label(x,y,48+64*key_label,146,2,white_note(key_label,octave_digit),24'h142137);
         for(sharp_label=0;sharp_label<5;sharp_label=sharp_label+1)
             label(x,y,74+64*(sharp_label<2 ? sharp_label : sharp_label+1),102,3,sharp_note(sharp_label,octave_digit),24'hF1F1FA);
         label(x,y,28,204,12,"DIGITAL WAVE",24'hC8BCFF);
-        label(x,y,508,204,2,"1X",24'h9CAEC9);
-        label(x,y,28,224,25,"I2S OUT / 10.49 MS / TRIG",24'h9CAEC9);
+        label(x,y,ENABLE_EXPRESSION ? 256 : 508,204,2,ENABLE_EXPRESSION ? "3X" : "1X",24'h9CAEC9);
+        if(ENABLE_EXPRESSION) begin
+            label(x,y,28,224,13,"PCM / 10.49MS",24'hCAD4E6);
+            label(x,y,340,204,9,"LISSAJOUS",24'hC8BCFF);
+            label(x,y,508,204,2,"3X",24'h9CAEC9);
+            label(x,y,340,224,11,"XY / 0.66MS",24'hCAD4E6);
+        end else label(x,y,28,224,25,"I2S OUT / 10.49 MS / TRIG",24'h9CAEC9);
         label(x,y,28,408,8,"SPECTRUM",24'hC8BCFF);
         label(x,y,396,408,11,"4096 / HANN",24'h9CAEC9);
         label(x,y,28,532,1,"0",24'h9CAEC9);
@@ -179,11 +295,29 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
         label(x,y,adc_online ? 696 : 684,160,adc_online ? 6 : 7,adc_online ? "ADC OK" : "ADC OFF",adc_online ? 24'h48E0C0 : 24'hFFA3A8);
         label(x,y,576,244,11,"MASTER GAIN",24'hC8BCFF);
         label(x,y,720,244,4,{volume_text,"%"},24'hF1F1FA);
-        label(x,y,576,296,echo_on ? 7 : 8,echo_on ? "ECHO ON" : "ECHO OFF",24'hF1F1FA);
+        if(ENABLE_EXPRESSION) begin
+            case(display_performance[3:2])
+                0:label(x,y,576,296,6,"FX OFF",24'hF1F1FA);
+                1:label(x,y,576,296,8,"FX DELAY",24'hF1F1FA);
+                2:label(x,y,576,296,9,"FX REVERB",24'hF1F1FA);
+                3:label(x,y,576,296,9,"FX CHORUS",24'hF1F1FA);
+            endcase
+        end else label(x,y,576,296,echo_on ? 7 : 8,echo_on ? "ECHO ON" : "ECHO OFF",24'hF1F1FA);
         label(x,y,576,320,vibrato ? 6 : 7,vibrato ? "VIB ON" : "VIB OFF",24'hF1F1FA);
-        label(x,y,576,356,11,"PRE-SPEAKER",24'h9CAEC9);
-        if(display_status[37]) label(x,y,708,320,5,"LIMIT",24'hFFA3A8);
-        if(diagnostics_visible) begin
+        if(ENABLE_EXPRESSION) label(x,y,576,356,10,!display_performance[0] ? "Y BEND OFF" : display_performance[1] ? "Y BEND ON " : "Y CENTER  ",24'h9CAEC9);
+        else label(x,y,576,356,11,"PRE-SPEAKER",24'h9CAEC9);
+        // Soft-knee activity is normal at solo attacks; it is not a fault badge.
+        // The audio limiter and its internal telemetry remain intact.
+        if(touch_fault_visible) begin
+            // These are the live playing-image controllers, not a silent test.
+            // E/F are sticky fault/count; S/D are the last settled idle levels.
+            label(x,y,576,408,10,"TOUCH LINK",24'hF2BE55);
+            label(x,y,576,432,10,{"A",digit(display_status[50])," E",digit({28'd0,display_wiring[3:0]})," F",decimal3({24'd0,display_wiring[11:4]})},24'hF1F1FA);
+            label(x,y,576,452,14,{fault_name(display_wiring[3:0])," S",idle_digit(display_wiring[14],display_wiring[13])," D",idle_digit(display_wiring[14],display_wiring[12])},24'hCAD4E6);
+            label(x,y,576,480,10,{"B",digit(display_status[51])," E",digit({28'd0,display_wiring[19:16]})," F",decimal3({24'd0,display_wiring[27:20]})},24'hF1F1FA);
+            label(x,y,576,500,14,{fault_name(display_wiring[19:16])," S",idle_digit(display_wiring[30],display_wiring[29])," D",idle_digit(display_wiring[30],display_wiring[28])},24'hCAD4E6);
+            label(x,y,576,524,10,"AUTO RETRY",24'h9CAEC9);
+        end else if(diagnostics_visible) begin
             label(x,y,576,408,10,"UART DEBUG",24'hC8BCFF);
             label(x,y,576,432,11,{"BY",decimal3(uart_bytes)," FR",decimal3(uart_frames)},24'hF1F1FA);
             label(x,y,576,452,11,{"RX",rx_text," ER",error_text},24'hF1F1FA);
@@ -198,13 +332,21 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
             label(x,y,576,500,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[4] ? "DONE      " : display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "NEXT NOTE ") : "LIVE INPUT",24'h9CAEC9);
             label(x,y,576,524,13,{"RX ",rx_text," ER ",error_text},24'h9CAEC9);
         end
-        if(ENABLE_JOYSTICK)
-            label(x,y,28,568,60,{"EC11 ",display_sustain[5] ? "ON " : "OFF"," L",decimal2({27'd0,display_sustain[4:0]}),"/16 | STICK L/R OCT | HOLD SW VIB | CENTER REARM"},24'hCAD4E6);
+        if(ENABLE_JOYSTICK) begin
+            // Same 60 cells, split into short labels to bound the glyph mux.
+            label(x,y,28,568,18,{"EC11 ",display_sustain[5] ? "ON " : "OFF"," L",decimal2({27'd0,display_sustain[4:0]}),"/16 | "},24'hCAD4E6);
+            label(x,y,244,568,16,"STICK L/R OCT | ",24'hCAD4E6);
+            if(ENABLE_EXPRESSION) begin
+                label(x,y,436,568,12,"C3/SW VIB | ",24'hCAD4E6);
+                label(x,y,580,568,14,"X0+C3 Y ON/OFF",24'hCAD4E6);
+            end else label(x,y,436,568,26,"HOLD SW/C3 VIB | RECENTER ",24'hCAD4E6);
+        end
         else if(ENABLE_EC11)
             label(x,y,28,568,40,{"EC11 SUST ",display_sustain[5] ? "ON " : "OFF"," L",decimal2({27'd0,display_sustain[4:0]}),"/16  TURN / PUSH TOGGLE"},24'hCAD4E6);
         else if(TOUCH_DEBUG)
             label(x,y,28,568,36,"DEFAULT SUSTAIN  UART H0 OFF / H1 ON",24'hCAD4E6);
         else label(x,y,28,568,58,"C0 TONE/ECHO C1/2 GAIN C3 VIB C1+C2 GUIDE X0+C0..3 OCT3..6",24'hCAD4E6);
+        end
     end
     always @* begin
         next_character=8'd32;
@@ -231,9 +373,9 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
     function [23:0] glass;
         input [23:0] background;
         begin
-            glass[23:16]=(background[23:16]>>3)+(background[23:16]>>4)+8'd12;
-            glass[15:8]=(background[15:8]>>3)+(background[15:8]>>4)+8'd18;
-            glass[7:0]=(background[7:0]>>3)+(background[7:0]>>4)+8'd30;
+            glass[23:16]=(background[23:16]>>2)+(background[23:16]>>3)+8'd8;
+            glass[15:8]=(background[15:8]>>2)+(background[15:8]>>3)+8'd10;
+            glass[7:0]=(background[7:0]>>2)+(background[7:0]>>3)+8'd18;
         end
     endfunction
     // Interpolate eight colour stops across the real 512 FFT bins.
@@ -263,7 +405,7 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
         rounded(px,565,783,py,77,219) || rounded(px,565,783,py,233,383) ||
         rounded(px,565,783,py,397,551) || rounded(px,17,783,py,565,587);
     wire [23:0] glass_rgb=glass(wallpaper_rgb);
-    wire [23:0] bar_rgb=spectrum_colour(key_offset[8:0]);
+    wire [23:0] bar_rgb=ENABLE_EXPRESSION ? 24'hBCA9F5 : spectrum_colour(key_offset[8:0]);
     wire [23:0] bar_shade={1'b0,bar_rgb[23:17],1'b0,bar_rgb[15:9],1'b0,bar_rgb[7:1]};
     wire [7:0] fft_height=plot_data>>1;
     reg [23:0] color;
@@ -279,7 +421,7 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
         trace_high=wave_y>previous_y ? wave_y : previous_y;
         sharp_level=0;sharp_meter=0;
         if(panel) color=glass_rgb;
-        if(panel && !panel_inner) color=24'h495166;
+        if(panel && !panel_inner) color=24'h737087;
         if(px>=28 && px<540 && py>=88 && py<168 && key_offset[5:0]<62) begin
             color=gates[key_index] ? 24'h91B9E4 :
                 (guide_on && guide_mask[key_index]) ? 24'h48E0A0 :
@@ -301,10 +443,14 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
                     color=px-(sharp<2 ? 74+64*sharp : 138+64*sharp)<sharp_meter[13:8] ? 24'h48E0C0 : 24'h29384F;
             end
         end
-        if(px>=28 && px<540 && py>=244 && py<=372) begin
+        if(px>=28 && px<(ENABLE_EXPRESSION ? 284 : 540) && py>=244 && py<=372) begin
             if((py==276 || py==308 || py==340 || key_offset[6:0]==0) && px[1:0]==0) color=24'h3B485F;
             if(scope_plot_ready && $signed({1'b0,py})>=trace_low-2 && $signed({1'b0,py})<=trace_high+2) color=24'h287577;
             if(scope_plot_ready && $signed({1'b0,py})>=trace_low-1 && $signed({1'b0,py})<=trace_high+1) color=24'h48E0C0;
+        end
+        if(ENABLE_EXPRESSION && px>=360 && px<488 && py>=244 && py<372) begin
+            if((px==424 || py==308) && px[1:0]==0) color=24'h646779;
+            if(liss_plot_ready && liss_plot) color=24'h48E0C0;
         end
         if(px>=28 && px<540 && py>=436 && py<524) begin
             if((key_offset[6:0]==0 || py==523) && px[1:0]==0) color=24'h3B485F;
@@ -317,30 +463,58 @@ module instrument_screen #(parameter ENABLE_JOYSTICK=1'b0,parameter ENABLE_EC11=
             color=(adc_online && px<576+pressure_width) ? 24'h48E0C0 : 24'h25364B;
         if(px>=576 && px<768 && py>=272 && py<280)
             color=px<576+volume_bar_product[20:12] ? 24'hC8BCFF : 24'h25364B;
-        if(!diagnostics_visible && guide_on && display_status[38] && px>=752 && px<764 && py>=476 && py<488)
+        if(!touch_fault_visible && !diagnostics_visible && guide_on && display_status[38] && px>=752 && px<764 && py>=476 && py<488)
             color=24'hF2BE55;
         if(text_pixel && panel_inner) color=glyph_ink;
+        if(TOUCH_ISOLATION) begin
+            color=24'h0B1220;
+            if(px>=20 && px<776 && py>=136 && py<434) color=24'h182237;
+            if(text_pixel) color=glyph_ink;
+        end else if(WIRING_DEBUG) begin
+            color=24'h0B1220;
+            if(px>=24 && px<776 && ((py>=76 && py<172) || (py>=184 && py<280) || (py>=292 && py<388)))
+                color=24'h182237;
+            if(text_pixel) color=glyph_ink;
+        end
     end
     always @(posedge clk) begin
         px0<=x;py0<=y;de0<=de;hs0<=hs;vs0<=vs;ready0<=visual_ready;
         px<=px0;py<=py0;de_delay<=de0;hs_delay<=hs0;vs_delay<=vs0;
         plot_data<=visual_data;plot_ready<=ready0;
         scope_plot<=scope_data;scope_ready0<=scope_ready;scope_plot_ready<=scope_ready0;
+        liss_plot<=liss_data;liss_ready0<=liss_ready;liss_plot_ready<=liss_ready0;
         label_visible<=text_visible;label_dx<=text_dx;label_dy<=text_dy;
         label_length<=text_length;label_line<=text_line;label_ink<=text_ink;
         text_pixel<=next_text_pixel;character<=next_character;glyph_ink<=label_ink;
         if(rst) begin
+            display_isolation<=0;
+            for(isolation_format=0;isolation_format<7;isolation_format=isolation_format+1) begin
+                isolation_a_text[isolation_format]<=0;isolation_b_text[isolation_format]<=0;
+            end
+            display_wiring<=0;joystick_text<="0.000 V";
             display_status<=0;display_sustain<=0;display_levels<=0;rgb<=0;out_de<=0;out_hs<=0;out_vs<=0;
             display_octave<=2'd1;display_performance<=0;
             scope_plot<=0;previous_scope<=0;scope_ready0<=0;scope_plot_ready<=0;
+            liss_plot<=0;liss_ready0<=0;liss_plot_ready<=0;
             de0<=0;de_delay<=0;hs0<=0;hs_delay<=0;vs0<=0;vs_delay<=0;
             ready0<=0;plot_ready<=0;
             label_visible<=0;text_pixel<=0;character<=32;glyph_ink<=0;
             pressure_text<="0.000 V";volume_text<="000";bpm_text<="000";
             rx_text<="000";error_text<="000";voice_text<="00";step_text<="01";length_text<="00";
         end else begin
-            if(de_delay && px>=28 && px<540 && py>=244 && py<=372) previous_scope<=scope_plot;
+            if(de_delay && px>=28 && px<(ENABLE_EXPRESSION ? 284 : 540) && py>=244 && py<=372) previous_scope<=scope_plot;
             if(vertical_blank) begin
+                display_isolation<=isolation_status;
+                if(TOUCH_ISOLATION) for(isolation_format=0;isolation_format<7;isolation_format=isolation_format+1) begin
+                    isolation_a_text[isolation_format]<={"F",decimal3({24'd0,isolation_status[isolation_format*32 +: 8]}),
+                        " E",hex_character(isolation_status[isolation_format*32+16 +: 4]),
+                        " U",isolation_status[isolation_format*32+26] ? "1" : "0"," D",isolation_status[isolation_format*32+24] ? "1" : "0"};
+                    isolation_b_text[isolation_format]<={"F",decimal3({24'd0,isolation_status[isolation_format*32+8 +: 8]}),
+                        " E",hex_character(isolation_status[isolation_format*32+20 +: 4]),
+                        " U",isolation_status[isolation_format*32+27] ? "1" : "0"," D",isolation_status[isolation_format*32+25] ? "1" : "0"};
+                end
+                display_wiring<=wiring_status;
+                joystick_text<={digit(wiring_status[59:48]/1000),".",decimal3(wiring_status[59:48]%1000)," V"};
                 display_status<=status;display_sustain<=sustain_info;
                 display_levels<=voice_levels;
                 display_octave<=octave_select;display_performance<=performance_info;

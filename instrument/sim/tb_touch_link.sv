@@ -96,6 +96,9 @@ module tb_touch_link;
             @(negedge clk);
             if((stuck==1 ? diagnostics[19:16] : diagnostics[3:0])!=2)
                 $fatal(1,"Stuck SCL diagnostic missing on bank %0d",stuck);
+            repeat(20) @(negedge clk);
+            if((stuck==1 ? diagnostics[30:28] : diagnostics[14:12])!=5)
+                $fatal(1,"Settled idle SCL low missing on bank %0d",stuck);
             other_reads=(stuck==1) ? a.reads : b.reads;
             repeat(20000) @(posedge clk);
             if(!chip_online[1-stuck] || online || touched!=0)

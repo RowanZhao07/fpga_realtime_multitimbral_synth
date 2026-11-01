@@ -2,6 +2,7 @@
 // White notes [7:0], controls [11:8], sharp notes [16:12], octave modifier X0 [17].
 module performance_control #(
     parameter ENABLE_JOYSTICK=1'b0,
+    parameter ENABLE_EXPRESSION=1'b0,
     parameter [1:0] DEFAULT_TIMBRE=2'd0,
     parameter integer HOLD_SAMPLES=48828,
     parameter integer REPEAT_SAMPLES=4883
@@ -17,14 +18,18 @@ module performance_control #(
     output wire vibrato,
     output reg spectrum_mode=0,
     output reg echo_enabled=0,
-    output reg guide_enabled=0
+    output reg guide_enabled=0,
+    output reg [1:0] effect_mode=0,
+    output reg y_enabled=0
 );
     reg [3:0] previous=0;
     reg [16:0] hold_count=0, repeat_count=0;
     reg combo_used=0;
     reg [16:0] effect_count=0, guide_count=0;
     reg effect_used=0, guide_used=0;
+    reg y_combo_previous=0;
     wire [3:0] raw_control=online ? touched[11:8] : 4'b0;
+    wire y_combo=ENABLE_EXPRESSION && online && touched[17] && raw_control==4'b1000;
     wire octave_modifier=!ENABLE_JOYSTICK && online && touched[17];
     reg octave_gesture=0,octave_used=0;
     wire suppress_controls=octave_modifier || octave_gesture;
@@ -33,13 +38,13 @@ module performance_control #(
     wire volume_repeat=(repeat_count==REPEAT_SAMPLES-1);
     // Keep the calibrated eight-sine spectrum test; live play has 13 notes.
     assign gates=online ? (spectrum_mode ? 13'h0FF : {touched[16:12],touched[7:0]}) : 13'd0;
-    assign vibrato=online && (ENABLE_JOYSTICK ? joystick_vibrato : control[3]) && !spectrum_mode && !all_control;
+    assign vibrato=online && ((ENABLE_JOYSTICK && joystick_vibrato) || control[3]) && !y_combo && !spectrum_mode && !all_control;
     always @(posedge clk) begin
         if(rst) begin
             previous<=0; timbre<=DEFAULT_TIMBRE; volume<=2048; spectrum_mode<=0;
             hold_count<=0; repeat_count<=0; combo_used<=0;
             effect_count<=0; guide_count<=0; effect_used<=0; guide_used<=0;
-            echo_enabled<=0; guide_enabled<=0;
+            echo_enabled<=0; guide_enabled<=0;effect_mode<=0;y_enabled<=0;y_combo_previous<=0;
             octave_select<=2'd1;octave_gesture<=0;octave_used<=0;
         end else begin
           // Joystick events are in clk domain, independent of the audio enable.
@@ -48,6 +53,8 @@ module performance_control #(
               if(joystick_down && !joystick_up && octave_select>0) octave_select<=octave_select-1'b1;
           end
           if(sample_ce) begin
+            y_combo_previous<=y_combo;
+            if(ENABLE_EXPRESSION && y_combo && !y_combo_previous && !spectrum_mode) y_enabled<=!y_enabled;
             // One selection per X0 gesture. Consume ambiguous multi-key chords
             // too, so releasing one control cannot accidentally select a bank.
             if(!online) begin octave_gesture<=0;octave_used<=0;end
@@ -74,7 +81,11 @@ module performance_control #(
             if(control==4'b0001 && !spectrum_mode && !combo_used) begin
                 if(!effect_used) begin
                     if(effect_count==HOLD_SAMPLES-1) begin
-                        echo_enabled<=!echo_enabled; effect_used<=1;
+                        if(ENABLE_EXPRESSION) begin
+                            effect_mode<=effect_mode+1'b1;
+                            echo_enabled<=effect_mode==0;
+                        end else echo_enabled<=!echo_enabled;
+                        effect_used<=1;
                     end else effect_count<=effect_count+1'b1;
                 end
             end else effect_count<=0;
@@ -114,7 +125,9 @@ module performance_control #(
           if(command_valid) case(command)
           "T":timbre<=value[1:0];
           "V":volume<=value[12:0];
-          "E":echo_enabled<=value[0];
+          "E":begin echo_enabled<=value[0];effect_mode<=value[0] ? 1 : 0;end
+          "F":if(ENABLE_EXPRESSION) begin effect_mode<=value[1:0];echo_enabled<=value==1;end
+          "Y":if(ENABLE_EXPRESSION) y_enabled<=value[0];
           "G":guide_enabled<=value[0];
           default:begin end
           endcase

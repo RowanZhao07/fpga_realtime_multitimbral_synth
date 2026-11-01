@@ -12,7 +12,8 @@ module mpr121_controller #(
     output wire online,
     output wire [1:0] chip_online,
     output wire [17:0] touched,
-    output wire [31:0] diagnostics
+    output wire [31:0] diagnostics,
+    output wire [1:0] failure_event
 );
     // Independent buses; both factory ADD-to-GND jumpers stay intact (0x5A).
     // A ELE0..9: K0 S0 K1 S1 K2 K3 S2 K4 S3 K5.
@@ -20,10 +21,10 @@ module mpr121_controller #(
     wire [11:0] raw_a,raw_b;
     mpr121_electrode_bank #(.ELECTRODES(10),.QUARTER(QUARTER),.TIMEOUT(TIMEOUT),
         .POWER_WAIT(POWER_WAIT),.RESET_WAIT(RESET_WAIT),.RETRY_WAIT(RETRY_WAIT),.POLL_WAIT(POLL_WAIT)) bank_a (
-        .clk(clk),.rst(rst),.scl(scl),.sda(sda),.online(chip_online[0]),.touched(raw_a),.diagnostics(diagnostics[15:0]));
+        .clk(clk),.rst(rst),.scl(scl),.sda(sda),.online(chip_online[0]),.touched(raw_a),.diagnostics(diagnostics[15:0]),.failure_event(failure_event[0]));
     mpr121_electrode_bank #(.ELECTRODES(8),.QUARTER(QUARTER),.TIMEOUT(TIMEOUT),
         .POWER_WAIT(POWER_WAIT),.RESET_WAIT(RESET_WAIT),.RETRY_WAIT(RETRY_WAIT),.POLL_WAIT(POLL_WAIT)) bank_b (
-        .clk(clk),.rst(rst),.scl(scl_b),.sda(sda_b),.online(chip_online[1]),.touched(raw_b),.diagnostics(diagnostics[31:16]));
+        .clk(clk),.rst(rst),.scl(scl_b),.sda(sda_b),.online(chip_online[1]),.touched(raw_b),.diagnostics(diagnostics[31:16]),.failure_event(failure_event[1]));
     // Preserve fail-closed behavior and the established logical key layout.
     assign online=&chip_online;
     assign touched=online ? {raw_b[3],raw_b[0],raw_a[8],raw_a[6],raw_a[3],raw_a[1],
@@ -44,7 +45,8 @@ module mpr121_electrode_bank #(
     inout wire scl, sda,
     output reg online=0,
     output reg [11:0] touched=0,
-    output wire [15:0] diagnostics
+    output wire [15:0] diagnostics,
+    output reg failure_event=0
 );
     localparam [7:0] ECR={4'h8,ELECTRODES};
     reg start=0, reading=0;
@@ -54,14 +56,13 @@ module mpr121_electrode_bank #(
     wire [3:0] bus_error;
     reg [3:0] last_error=0;
     reg [7:0] failures=0;
-    reg [1:0] scl_seen=3,sda_seen=3;
-    always @(posedge clk) begin scl_seen<={scl_seen[0],scl};sda_seen<={sda_seen[0],sda};end
+    wire [2:0] idle_lines;
     // Preserve the last fault across retries/recovery. 5=config mismatch, 6=OVCF.
-    assign diagnostics={2'b0,scl_seen[1],sda_seen[1],failures,last_error};
+    assign diagnostics={busy,idle_lines,failures,last_error};
     i2c_register_master #(.QUARTER(QUARTER), .TIMEOUT(TIMEOUT)) bus (
         .clk(clk), .rst(rst), .start(start), .reading(reading), .device_address(7'h5A),
         .address(address), .value(value), .busy(busy), .done(done),
-        .failed(failed), .result(result), .error_code(bus_error),.scl(scl), .sda(sda)
+        .failed(failed), .result(result), .error_code(bus_error),.idle_lines(idle_lines),.scl(scl), .sda(sda)
     );
     // NXP register map: stop sensing, configure filters/thresholds, then run.
     // Fixed acquisition current and time match the connected copper electrodes.
@@ -96,6 +97,7 @@ module mpr121_electrode_bank #(
     reg [31:0] delay_count=POWER_WAIT;
     always @(posedge clk) begin
         start<=0;
+        failure_event<=0;
         if (rst) begin
             online<=0; touched<=0; index<=0; mode<=INIT;
             state<=WAIT; delay_count<=POWER_WAIT;
@@ -118,6 +120,7 @@ module mpr121_electrode_bank #(
                     // NACK, config mismatch or over-current releases this bank.
                     online<=0; touched<=0; mode<=INIT; index<=0;
                     last_error<=failed ? bus_error : mode==VERIFY ? 4'd5 : 4'd6;
+                    failure_event<=1;
                     if(failures!=255) failures<=failures+1'b1;
                     delay_count<=RETRY_WAIT;
                 end else if (mode==INIT) begin

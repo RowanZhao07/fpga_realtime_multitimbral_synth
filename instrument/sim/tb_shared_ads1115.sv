@@ -5,6 +5,7 @@ module tb_shared_ads1115;
  reg [15:0] c0=16000,c1=13200;
  tri1 scl,sda;assign scl=hold_clock?1'b0:1'bz;
  wire po,jo,pv,jv;wire [11:0] pm,jm;
+ wire [15:0] diagnostics;
  integer pc=0,jc=0,previous_channel=1,prior_count;
  wire up,down;integer ups=0,downs=0;
  joystick_control #(.CENTER_SAMPLES(2),.BUTTON_CLOCKS(4)) decoder(
@@ -14,7 +15,7 @@ module tb_shared_ads1115;
  ads1115_scanner #(.QUARTER(8),.TIMEOUT(6000),.POWER_WAIT(100),.CONVERSION_WAIT(20),
  .POLL_WAIT(20),.MAX_READY_POLLS(16),.RETRY_WAIT(500)) dut(
  .clk(clk),.rst(rst),.scl(scl),.sda(sda),.pressure_online(po),.pressure_mv(pm),.pressure_valid(pv),
- .joystick_online(jo),.joystick_mv(jm),.joystick_valid(jv));
+ .joystick_online(jo),.joystick_mv(jm),.joystick_valid(jv),.diagnostics(diagnostics));
  shared_ads1115_test_device adc(.scl(scl),.sda(sda),.present(present),.bad_config(bad_config),
  .conversion0(c0),.conversion1(c1),.hang_conversion(hang_conversion));
  always @(negedge clk) begin
@@ -50,14 +51,21 @@ module tb_shared_ads1115;
  c0=25880;c1=1600;pair;
  if(pm!==3235 || jm!==200 || downs!=0)$fatal(1,"Calibrated pressure/axis cross without neutral");
  c1=13200;pair;c1=1600;pair;if(downs!=1)$fatal(1,"ADC to joystick neutral/left event");
- present=0;failed;ticks(20000);present=1;pair;
+ present=0;failed;ticks(20000);
+ if(diagnostics[3:0]!=1 || diagnostics[11:4]==0 || diagnostics[14:12]!=7)$fatal(1,"NACK/idle-high evidence missing");
+ present=1;pair;
+ if(diagnostics[3:0]!=1 || diagnostics[11:4]==0)$fatal(1,"Recovery erased fault history");
  $display("PASS: NACK invalidates both consumers and recovers from AIN0");
  bad_config=1;failed;ticks(20000);if(po||jo)$fatal(1,"Wrong config accepted");
+ if(diagnostics[3:0]!=5)$fatal(1,"Configuration mismatch evidence missing");
  bad_config=0;pair;
- wait(jv);ticks(4);hold_clock=1;failed;ticks(10000);hold_clock=0;pair;
+ wait(jv);ticks(4);hold_clock=1;failed;ticks(20);
+ if(diagnostics[3:0]!=2 || diagnostics[14:12]!=5)$fatal(1,"SCL-low idle evidence missing");
+ ticks(10000);hold_clock=0;pair;
  $display("PASS: configuration mismatch and SCL timeout recovery");
  hang_conversion=1;failed;prior_count=pc+jc;ticks(50000);
  if(pc+jc!=prior_count)$fatal(1,"Stalled conversion published stale data");
+ if(diagnostics[3:0]!=7)$fatal(1,"Conversion timeout evidence missing");
  hang_conversion=0;pair;
  $display("PASS: bounded OS timeout and restart");
  // ADC reset responds to I2C but loses MUX/config; must reject and configure anew.
@@ -68,18 +76,18 @@ module tb_shared_ads1115;
 endmodule
 
 module shared_ads1115_test_device(inout wire scl,sda,input wire present,bad_config,
-    input wire [15:0] conversion0,conversion1,input wire hang_conversion);
+    input wire [15:0] conversion0,conversion1,conversion2,input wire hang_conversion);
     reg [15:0] config_word=16'h8583;
     reg converting=0;
     reg [15:0] converted=16'h7FFF;
     integer conversion_starts=0,conversion_reads=0,busy_reads=0;
     event config_written;
-    always @(config_written) if(config_word[15] && config_word[8] && config_word[14:12]>=4 && config_word[14:12]<=5) begin
+    always @(config_written) if(config_word[15] && config_word[8] && config_word[14:12]>=4 && config_word[14:12]<=6) begin
         converting=1;conversion_starts=conversion_starts+1;
         // Old conversion remains visible for 200us after every channel switch.
         #200000;
         if(!hang_conversion) begin
-            converted=config_word[14:12]==4 ? conversion0 : conversion1;converting=0;
+            converted=config_word[14:12]==4 ? conversion0 : config_word[14:12]==5 ? conversion1 : conversion2;converting=0;
         end
     end
     reg slave_sda=0,transaction=0;

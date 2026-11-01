@@ -1,17 +1,41 @@
 `timescale 1ns/1ps
 // Full top wiring and Gowin primitive models; accelerated analysis sample/blank
 // enables only. Real publication timing is separately covered by tb_scope_link.
-module tb_joystick_top;
+module tb_joystick_top #(parameter EXPRESSION=0);
  reg sw=1,joysw=1,jvalid=0;reg [11:0] jmv=1650;
  GSR GSR(.GSRI(1'b1));
  reg ref_clk=0;always #10 ref_clk=~ref_clk;
  tri1 scl,sda,scl_b,sda_b,pressure_scl,pressure_sda;
  wire bck,lrck,din;wire [7:0] led;wire [2:0] p,n;wire cp,cn,hpd;
- instrument_top #(.ENABLE_JOYSTICK(1),.JOYSTICK_BUTTON_CLOCKS(12),.ENABLE_EC11(1),.EC11_FILTER_CLOCKS(4),.EC11_BUTTON_CLOCKS(12)) dut(.joystick_sw_n(joysw),.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(sw),.ref_clk(ref_clk),.mpr_scl(scl),.mpr_sda(sda),.dac_bck(bck),.dac_lrck(lrck),
+ wire joystick_vcc;
+ instrument_top #(.ENABLE_EXPRESSION(EXPRESSION),.ENABLE_JOYSTICK(1),.JOYSTICK_BUTTON_CLOCKS(12),.ENABLE_EC11(1),.EC11_FILTER_CLOCKS(4),.EC11_BUTTON_CLOCKS(12)) dut(.joystick_sw_n(joysw),.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(sw),.ref_clk(ref_clk),.mpr_scl(scl),.mpr_sda(sda),.dac_bck(bck),.dac_lrck(lrck),
  .mpr_b_scl(scl_b),.mpr_b_sda(sda_b),.pressure_scl(pressure_scl),.pressure_sda(pressure_sda),
- .control_rx(1'b1),.control_tx(),.led_ser(),.led_srclk(),.led_rclk(),.led_oe_n(),
+ .control_rx(1'b1),.control_tx(),.led_ser(),.led_srclk(),.led_rclk(),.led_oe_n(),.joystick_vcc(joystick_vcc),
  .dac_din(din),.led(led),.tmds_p(p),.tmds_n(n),.tmds_clock_p(cp),.tmds_clock_n(cn),.hpd_en(hpd));
  integer scope_frames=0,fft_writes=0,i;
+ integer expected_display;
+ always @(negedge ref_clk) if(!dut.analyser_rst) begin
+   expected_display=$signed(dut.monitor_sample)*(EXPRESSION ? 3 : 1);
+   if(expected_display>32767)expected_display=32767;
+   if(expected_display< -32768)expected_display=-32768;
+   if(dut.display_sample!==expected_display[15:0])$fatal(1,"Top visual-only gain mismatch");
+   if(dut.scope.sample!==dut.display_sample)$fatal(1,"Waveform bypassed display zoom");
+   if(dut.analyser.sample!==dut.monitor_sample || dut.core.transmitter.sample!==dut.monitor_sample)
+     $fatal(1,"Visual zoom leaked into FFT or DAC audio");
+ end
+ generate if(EXPRESSION) begin: check_xy_zoom
+   always @(negedge ref_clk) if(!dut.analyser_rst && dut.xy_visual.xy.sample!==dut.display_sample)
+     $fatal(1,"XY bypassed display zoom");
+ end endgenerate
+ // Supply must remain high during startup, ADC loss, input and video activity.
+ // Analog voltage and loaded current still require measurement on the board.
+ always @(negedge ref_clk)
+ if(joystick_vcc!==1'b1)$fatal(1,"Joystick supply dropped during operation");
+ localparam integer FOOTER_CELLS=60;
+ reg [FOOTER_CELLS*8-1:0] expected_footer=EXPRESSION ?
+   "EC11 ON  L03/16 | STICK L/R OCT | C3/SW VIB | X0+C3 Y ON/OFF" :
+   "EC11 ON  L03/16 | STICK L/R OCT | HOLD SW/C3 VIB | RECENTER ";
+ reg [10:0] footer_x=28;
  reg [2:0] fast_divider=0;reg fast_sample_ce=0;
  reg [9:0] blank_divider=0;reg fast_blank=0;
  always @(posedge dut.clk) begin
@@ -78,12 +102,21 @@ module tb_joystick_top;
  wait(dut.screen.display_sustain=={1'b1,5'd3});
  force dut.x=11'd28;force dut.y=10'd568;repeat(8)@(negedge ref_clk);
  if(dut.screen.character!=="E")$fatal(1,"EC11 footer missing");
- force dut.x=11'd736;repeat(8)@(negedge ref_clk);
- if(dut.screen.character!=="M")$fatal(1,"Joystick footer final character missing");
+
+ force dut.x=footer_x;
+ for(i=0;i<FOOTER_CELLS;i=i+1) begin
+     footer_x=28+12*i;repeat(8)@(negedge ref_clk);
+     if(dut.screen.character!==((expected_footer>>((FOOTER_CELLS-1-i)*8)) & 8'hff))
+         $fatal(1,"Joystick footer cell %0d changed or missing",i);
+ end
  release dut.x;release dut.y;
  release dut.online;release dut.chip_online;release dut.touched;
  $display("PASS: full primitive-backed top, %0d scope frames before first FFT, compact banks, idle PCM and 13 voice levels",scope_frames);
  $display("ALL TESTS PASSED");$finish;
  end
  initial begin #20000000;$fatal(1,"Top watchdog");end
+endmodule
+
+module tb_expression_top;
+ tb_joystick_top #(.EXPRESSION(1)) suite();
 endmodule

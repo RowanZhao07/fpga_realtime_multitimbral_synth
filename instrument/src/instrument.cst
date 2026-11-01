@@ -106,3 +106,9 @@ IO_PORT "encoder_sw_n" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
 // KY-023 switch: J13-23/A7/A19. External pull-up to 3.3V recommended.
 IO_LOC "joystick_sw_n" A19;
 IO_PORT "joystick_sw_n" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=UP;
+
+// J13-9 = SDRAM0_D15 = B16 (3.3V bank), separate from J13-11's 5V rail.
+// Joystick profile drives high; legacy profiles release it. One joystick only:
+// measured isolated VCC-GND ~2.6kOhm => ~1.27mA at 3.3V. No external supply.
+IO_LOC "joystick_vcc" B16;
+IO_PORT "joystick_vcc" IO_TYPE=LVCMOS33 BANK_VCCIO=3.3 PULL_MODE=NONE DRIVE=8;

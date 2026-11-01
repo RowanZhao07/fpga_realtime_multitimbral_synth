@@ -16,6 +16,8 @@ module i2c_register_master #(
     output reg [15:0] result = 0,
     // 0=OK, 1=NACK, 2=SCL timeout, 3=SDA stuck/bus clear, 4=other timeout.
     output reg [3:0] error_code = 0,
+    // {valid,SCL,SDA}: last settled idle sample, not a mid-transfer level.
+    output wire [2:0] idle_lines,
     inout wire scl, inout wire sda
 );
     reg scl_low = 0, sda_low = 0;
@@ -25,6 +27,15 @@ module i2c_register_master #(
     always @(posedge clk) begin
         scl_sync <= {scl_sync[0], scl};
         sda_sync <= {sda_sync[0], sda};
+    end
+    reg [3:0] idle_count=0;
+    reg idle_valid=0,idle_scl=1,idle_sda=1;
+    assign idle_lines={idle_valid,idle_scl,idle_sda};
+    always @(posedge clk) begin
+        if(rst) begin idle_count<=0;idle_valid<=0;idle_scl<=1;idle_sda<=1;end
+        else if(busy || start) idle_count<=0;
+        else if(idle_count<8) idle_count<=idle_count+1'b1;
+        else begin idle_valid<=1;idle_scl<=scl_sync[1];idle_sda<=sda_sync[1];end
     end
     localparam IDLE=0, START_A=1, START_B=2, TX_A=3, TX_B=4,
         TX_C=5, TX_D=6, ACK_A=7, ACK_B=8, ACK_C=9, ACK_D=10,

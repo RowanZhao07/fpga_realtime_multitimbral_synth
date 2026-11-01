@@ -4,6 +4,7 @@
 // Complete TX= status lines observed on the Bluetooth link are consumed silently.
 module uart_control #(
     parameter integer CLOCKS_PER_BIT=5208,
+    parameter ENABLE_EXPRESSION=1'b0,
     parameter integer TIMEOUT_CLOCKS=50000000
 )(
     input wire clk,rst,rx,command_ok,
@@ -56,6 +57,8 @@ module uart_control #(
         if(!bad) case(opcode)
         "?","N","Z","R":legal=count==1;
         "T":legal=count==2 && number<=3;
+        "F":legal=ENABLE_EXPRESSION && count==2 && number<=3;
+        "Y":legal=ENABLE_EXPRESSION && count==2 && number<=1;
         "O":legal=count==2 && number>=3 && number<=6;
         "U":legal=count>=2 && count<=4 && number>=1 && number<=255;
         "D","E","G","H":legal=count==2 && number<=1;
