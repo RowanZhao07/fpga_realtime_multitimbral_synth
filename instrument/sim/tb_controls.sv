@@ -4,7 +4,7 @@ module tb_controls;
     reg rst=1,online=1,ce=1;
     reg [17:0] touched=0;
     wire [12:0] gates;
-    wire [1:0] timbre;
+    wire [2:0] timbre;
     wire [12:0] volume;
     wire vibrato,spectrum_mode,echo_enabled,guide_enabled;
     performance_control #(.HOLD_SAMPLES(20),.REPEAT_SAMPLES(4)) dut(
@@ -21,6 +21,8 @@ module tb_controls;
         touched=12'h095; ticks(2); if(gates!==8'h95) $fatal(1,"Polyphonic gates");
         touched=12'h195; ticks(10); if(timbre!=0) $fatal(1,"Premature preset change");
         touched=12'h095; ticks(2); if(timbre!=1 || gates!=8'h95) $fatal(1,"Preset release edge");
+        touched=12'h695;ticks(2);touched=12'h295;ticks(1);
+        if(volume!=2048)$fatal(1,"Legacy simultaneous VOL release must not retrigger initial volume step");
         touched=12'h295; ticks(80); if(volume!=512 || gates!=8'h95) $fatal(1,"Volume down limit");
         touched=12'h495; ticks(80); if(volume!=4096) $fatal(1,"Volume up limit");
         touched=12'h895; ticks(2); if(!vibrato || gates!=8'h95) $fatal(1,"Independent vibrato");

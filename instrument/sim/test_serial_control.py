@@ -12,6 +12,12 @@ spec.loader.exec_module(tool)
 
 
 class SerialControlTests(unittest.TestCase):
+    def test_eight_timbres(self):
+        for tone in range(8):
+            self.assertTrue(tool.valid_command(f"T{tone}"))
+        for command in ("T8", "T9", "T10", "T01", "T-1"):
+            self.assertFalse(tool.valid_command(command), command)
+
     def test_expression_profile_commands(self):
         for command in ("F0", "F1", "F2", "F3", "Y0", "Y1"):
             self.assertTrue(tool.valid_command(command), command)

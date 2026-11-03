@@ -63,7 +63,7 @@ def valid_command(command):
     if command in ("?", "N", "Z", "R"):
         return True
     if re.fullmatch(r"[TFYDEGH][0-9]", command):
-        return int(command[1:]) <= (3 if command[0] in "TF" else 1)
+        return int(command[1:]) <= (7 if command[0] == "T" else 3 if command[0] == "F" else 1)
     if re.fullmatch(r"V[0-9]{1,4}", command):
         return int(command[1:]) <= 4096
     if re.fullmatch(r"L[0-9]{1,3}", command):

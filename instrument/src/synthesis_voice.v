@@ -6,13 +6,13 @@ module synthesis_voice (
     input wire sustain_down,
     input wire clk, rst, sample_ce, gate,
     input wire [31:0] phase_step,
-    input wire [1:0] timbre,
+    input wire [2:0] timbre,
     output reg signed [15:0] sample=0,
     output wire active, output wire [7:0] envelope_level
 );
     reg [31:0] phase=0;
     reg gate_previous=0;
-    reg [1:0] preset=0;
+    reg [2:0] preset=0;
     wire [15:0] envelope;
     assign envelope_level=envelope[15:8];
     envelope_adsr amplitude(.sustain_strength(5'd3),.sustain_down(sustain_down),.clk(clk),.rst(rst),.sample_ce(sample_ce),

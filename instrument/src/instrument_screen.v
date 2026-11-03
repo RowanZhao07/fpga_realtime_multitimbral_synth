@@ -8,7 +8,8 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
     input wire de,hs,vs,vertical_blank,input wire [203:0] status,
     input wire [103:0] voice_levels,
     input wire [1:0] octave_select,
-    input wire [31:0] performance_info,
+    input wire [32:0] performance_info,
+    input wire [17:0] metronome_info,
     input wire scope_ready,input wire [7:0] scope_data,output wire [8:0] scope_address,
     input wire liss_ready,liss_data,output wire [13:0] liss_address,
     input wire visual_ready,input wire [7:0] visual_data,
@@ -42,7 +43,13 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
     wire isolation_done=display_isolation[232];
     reg [55:0] joystick_text="0.000 V";
     reg [5:0] display_sustain=0;
-    reg [31:0] display_performance=0;
+    reg [32:0] display_performance=0;
+    reg [17:0] display_metronome=18'd123264;
+    reg [23:0] metro_bpm_text="120";
+    wire [2:0] metro_meter=display_metronome[9:7],metro_beat=display_metronome[6:4];
+    wire metro_enabled=display_metronome[3],metro_flash=display_metronome[2];
+    wire [2:0] metro_beats=metro_meter<2 ? 2 : metro_meter==2 ? 3 : metro_meter==3 ? 4 : 6;
+    wire [23:0] meter_text=metro_meter==0 ? "2/2" : metro_meter==1 ? "2/4" : metro_meter==2 ? "3/4" : metro_meter==3 ? "4/4" : "6/8";
     reg [103:0] display_levels=0;
     reg [1:0] display_octave=2'd1;
     wire [7:0] octave_digit=8'd51+{6'd0,display_octave};
@@ -60,7 +67,7 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
     wire [11:0] pressure_mv=display_status[64:53];
     wire [12:0] gates={display_status[44:40],display_status[7:0]};
     wire [12:0] active={display_status[49:45],display_status[15:8]};
-    wire [1:0] timbre=display_status[17:16];
+    wire [2:0] timbre={display_performance[32],display_status[17:16]};
     wire [4:0] volume=display_status[22:18];
     wire [12:0] full_volume={volume,display_status[203:196]};
     wire [20:0] volume_bar_product=full_volume*8'd192;
@@ -70,7 +77,8 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
     wire lamp_test=display_status[39];
     wire [8:0] position=display_performance[15:7];
     wire [10:0] plot_x=x-11'd28;
-    assign visual_address={y>=396,plot_x[8:0]};
+    wire [10:0] compact_plot_x=x-11'd284;
+    assign visual_address=ENABLE_EXPRESSION ? {2'b0,compact_plot_x[7:0]} : {y>=396,plot_x[8:0]};
     // Keep the 512-sample / 10.49 ms capture; show alternate points in 256 px.
     assign scope_address=ENABLE_EXPRESSION ? {plot_x[7:0],1'b0} : plot_x[8:0];
     wire [10:0] key_offset=px-11'd28;
@@ -265,9 +273,13 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
             1:label(x,y,416,24,11,"TONE EPIANO",24'hC8BCFF);
             2:label(x,y,416,24,12,"TONE STRINGS",24'hC8BCFF);
             3:label(x,y,416,24,10,"TONE METAL",24'hC8BCFF);
+            4:label(x,y,416,24,10,"TONE FLUTE",24'hC8BCFF);
+            5:label(x,y,416,24,10,"TONE ORGAN",24'hC8BCFF);
+            6:label(x,y,416,24,10,"TONE PLUCK",24'hC8BCFF);
+            7:label(x,y,416,24,9,"TONE BASS",24'hC8BCFF);
         endcase
         label(x,y,416,44,9,"48.8K I2S",24'h9CAEC9);
-        if(ENABLE_EXPRESSION) label(x,y,640,24,10,"EXPR U2 3X",24'hC8BCFF);
+        if(ENABLE_EXPRESSION) label(x,y,640,24,10,"EXPR M2 8T",24'hC8BCFF);
         label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[4] ? "DONE      " : display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "NEXT NOTE ") : "LIVE INPUT",24'hC8BCFF);
         for(key_label=0;key_label<8;key_label=key_label+1)
             label(x,y,48+64*key_label,146,2,white_note(key_label,octave_digit),24'h142137);
@@ -281,13 +293,29 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
             label(x,y,508,204,2,"3X",24'h9CAEC9);
             label(x,y,340,224,11,"XY / 0.66MS",24'hCAD4E6);
         end else label(x,y,28,224,25,"I2S OUT / 10.49 MS / TRIG",24'h9CAEC9);
-        label(x,y,28,408,8,"SPECTRUM",24'hC8BCFF);
-        label(x,y,396,408,11,"4096 / HANN",24'h9CAEC9);
-        label(x,y,28,532,1,"0",24'h9CAEC9);
-        label(x,y,140,532,4,"1.5K",24'h9CAEC9);
-        label(x,y,272,532,2,"3K",24'h9CAEC9);
-        label(x,y,396,532,4,"4.5K",24'h9CAEC9);
-        label(x,y,516,532,2,"6K",24'h9CAEC9);
+        if(ENABLE_EXPRESSION) begin
+            label(x,y,28,408,9,"METRONOME",24'hC8BCFF);
+            label(x,y,208,408,3,metro_enabled ? "ON " : "OFF",metro_enabled ? 24'h48E0C0 : 24'h9CAEC9);
+            label(x>>1,y>>1,14,218,3,metro_bpm_text,24'hF1F1FA);
+            label(x,y,112,444,3,"BPM",24'h9CAEC9);
+            label(x,y,208,444,3,meter_text,24'hF1F1FA);
+            label(x,y,28,474,8,metro_meter==0 ? "1/2 NOTE" : metro_meter==4 ? "DOT 1/4 " : "1/4 NOTE",24'h9CAEC9);
+            label(x,y,208,474,3,{digit({29'd0,metro_beat}+1),"/",digit({29'd0,metro_beats})},24'hCAD4E6);
+            label(x,y,28,530,17,"X0+C0 METER C3 ON",24'h9CAEC9);
+            label(x,y,284,408,8,"SPECTRUM",24'hC8BCFF);
+            label(x,y,284,436,11,"4096 / HANN",24'h9CAEC9);
+            label(x,y,284,520,1,"0",24'h9CAEC9);
+            label(x,y,400,520,2,"3K",24'h9CAEC9);
+            label(x,y,516,520,2,"6K",24'h9CAEC9);
+        end else begin
+            label(x,y,28,408,8,"SPECTRUM",24'hC8BCFF);
+            label(x,y,396,408,11,"4096 / HANN",24'h9CAEC9);
+            label(x,y,28,532,1,"0",24'h9CAEC9);
+            label(x,y,140,532,4,"1.5K",24'h9CAEC9);
+            label(x,y,272,532,2,"3K",24'h9CAEC9);
+            label(x,y,396,532,4,"4.5K",24'h9CAEC9);
+            label(x,y,516,532,2,"6K",24'h9CAEC9);
+        end
         label(x,y,576,88,online ? 12 : 13,online ? "TOUCH ONLINE" : "TOUCH OFFLINE",online ? 24'h48E0C0 : 24'hFFA3A8);
         label(x,y,576,112,14,{"VOICES ",voice_text," / 32"},24'hF1F1FA);
         label(x,y,576,140,8,"PRESSURE",24'hC8BCFF);
@@ -338,7 +366,7 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
             label(x,y,244,568,16,"STICK L/R OCT | ",24'hCAD4E6);
             if(ENABLE_EXPRESSION) begin
                 label(x,y,436,568,12,"C3/SW VIB | ",24'hCAD4E6);
-                label(x,y,580,568,14,"X0+C3 Y ON/OFF",24'hCAD4E6);
+                label(x,y,580,568,14,"X0+C1/2 TEMPO ",24'hCAD4E6);
             end else label(x,y,436,568,26,"HOLD SW/C3 VIB | RECENTER ",24'hCAD4E6);
         end
         else if(ENABLE_EC11)
@@ -397,17 +425,19 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
         end
     endfunction
     wire panel=rounded(px,16,784,py,12,68) || rounded(px,16,552,py,76,180) ||
-        rounded(px,16,552,py,192,384) || rounded(px,16,552,py,396,552) ||
+        rounded(px,16,552,py,192,384) || (ENABLE_EXPRESSION ? (rounded(px,16,264,py,396,552) || rounded(px,272,552,py,396,552)) : rounded(px,16,552,py,396,552)) ||
         rounded(px,564,784,py,76,220) || rounded(px,564,784,py,232,384) ||
         rounded(px,564,784,py,396,552) || rounded(px,16,784,py,564,588);
     wire panel_inner=rounded(px,17,783,py,13,67) || rounded(px,17,551,py,77,179) ||
-        rounded(px,17,551,py,193,383) || rounded(px,17,551,py,397,551) ||
+        rounded(px,17,551,py,193,383) || (ENABLE_EXPRESSION ? (rounded(px,17,263,py,397,551) || rounded(px,273,551,py,397,551)) : rounded(px,17,551,py,397,551)) ||
         rounded(px,565,783,py,77,219) || rounded(px,565,783,py,233,383) ||
         rounded(px,565,783,py,397,551) || rounded(px,17,783,py,565,587);
     wire [23:0] glass_rgb=glass(wallpaper_rgb);
     wire [23:0] bar_rgb=ENABLE_EXPRESSION ? 24'hBCA9F5 : spectrum_colour(key_offset[8:0]);
     wire [23:0] bar_shade={1'b0,bar_rgb[23:17],1'b0,bar_rgb[15:9],1'b0,bar_rgb[7:1]};
-    wire [7:0] fft_height=plot_data>>1;
+    wire [7:0] fft_height=ENABLE_EXPRESSION ? plot_data>>2 : plot_data>>1;
+    wire [10:0] fft_offset=px-(ENABLE_EXPRESSION ? 284 : 28);
+    wire [9:0] fft_bottom=ENABLE_EXPRESSION ? 507 : 523;
     reg [23:0] color;
     reg signed [11:0] wave_y,previous_y,trace_low,trace_high;
     reg [7:0] sharp_level;
@@ -452,11 +482,18 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
             if((px==424 || py==308) && px[1:0]==0) color=24'h646779;
             if(liss_plot_ready && liss_plot) color=24'h48E0C0;
         end
-        if(px>=28 && px<540 && py>=436 && py<524) begin
-            if((key_offset[6:0]==0 || py==523) && px[1:0]==0) color=24'h3B485F;
-            if(plot_ready && py>=523-fft_height && fft_height!=0) begin
+        if(px>=(ENABLE_EXPRESSION ? 284 : 28) && px<540 && py>=(ENABLE_EXPRESSION ? 464 : 436) && py<=fft_bottom) begin
+            if(((ENABLE_EXPRESSION ? fft_offset[5:0]==0 : fft_offset[6:0]==0) || py==fft_bottom) && px[1:0]==0) color=24'h3B485F;
+            if(plot_ready && py>=fft_bottom-fft_height && fft_height!=0) begin
                 color=py[2:0]==5 ? bar_shade : bar_rgb;
-                if(py<=524-fft_height) color=24'hF4EFFF;
+                if(py<=fft_bottom+1-fft_height) color=24'hF4EFFF;
+            end
+        end
+        if(ENABLE_EXPRESSION) for(dot=0;dot<6;dot=dot+1) begin
+            if(dot<metro_beats && px>=28+36*dot && px<52+36*dot && py>=502 && py<514) begin
+                color=24'h384259;
+                if(metro_enabled && metro_flash && metro_beat==dot)
+                    color=dot==0 ? 24'hFFD27B : display_metronome[1:0]==1 ? 24'hC8BCFF : 24'h48E0C0;
             end
         end
         if(px>=576 && px<768 && py>=188 && py<196)
@@ -493,7 +530,7 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
             end
             display_wiring<=0;joystick_text<="0.000 V";
             display_status<=0;display_sustain<=0;display_levels<=0;rgb<=0;out_de<=0;out_hs<=0;out_vs<=0;
-            display_octave<=2'd1;display_performance<=0;
+            display_octave<=2'd1;display_performance<=0;display_metronome<={8'd120,3'd3,7'd0};metro_bpm_text<="120";
             scope_plot<=0;previous_scope<=0;scope_ready0<=0;scope_plot_ready<=0;
             liss_plot<=0;liss_ready0<=0;liss_plot_ready<=0;
             de0<=0;de_delay<=0;hs0<=0;hs_delay<=0;vs0<=0;vs_delay<=0;
@@ -518,6 +555,7 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
                 display_status<=status;display_sustain<=sustain_info;
                 display_levels<=voice_levels;
                 display_octave<=octave_select;display_performance<=performance_info;
+                display_metronome<=metronome_info;metro_bpm_text<=decimal3(metronome_info[17:10]);
                 pressure_text<={digit(status[64:53]/1000),".",decimal3(status[64:53]%1000)," V"};
                 volume_text<=decimal3(({status[22:18],status[203:196]}*100)/4096);
                 voice_text<=decimal2(performance_info[31:26]);

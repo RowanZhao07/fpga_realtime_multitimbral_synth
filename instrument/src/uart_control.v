@@ -56,7 +56,7 @@ module uart_control #(
         legal=0;
         if(!bad) case(opcode)
         "?","N","Z","R":legal=count==1;
-        "T":legal=count==2 && number<=3;
+        "T":legal=count==2 && number<=7;
         "F":legal=ENABLE_EXPRESSION && count==2 && number<=3;
         "Y":legal=ENABLE_EXPRESSION && count==2 && number<=1;
         "O":legal=count==2 && number>=3 && number<=6;

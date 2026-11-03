@@ -6,7 +6,7 @@ module tb_screen_feedback;
     reg rst=1,blank=0;reg [10:0] x=0;reg [9:0] y=0;
     reg [203:0] status=0;reg [103:0] levels=0;
     reg [1:0] octave_select=1;
-    reg [31:0] performance={6'd13,10'd76,9'd4,7'd0};
+    reg [32:0] performance={1'b0,6'd13,10'd76,9'd4,7'd0};
     reg [7:0] scope=0,source=0;wire [23:0] rgb;
     always @(posedge clk) scope<=source;
     instrument_screen dut(.sustain_info(6'd0),.clk(clk),.rst(rst),.x(x),.y(y),.de(1'b1),.hs(1'b0),.vs(1'b0),

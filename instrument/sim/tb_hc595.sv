@@ -163,6 +163,7 @@ module tb_key_lights;
         touched=18'h08001; check(16'h0101); // C4 + G#4, across the two chips.
         touched=18'h00001; check(16'h0001); // LED9 must clear despite held C4.
         touched=18'h20000; check(16'h1FFF);
+        touched=18'h20800; check(16'h1FFF); // Legacy octave modifier still retains lamp check.
         if(status[7:0]!=0 || status[44:40]!=0) $fatal(1,"Lamp check triggered notes");
         touched=0; check(0);
         $display("PASS: all 13 PCB LEDs, white/sharp chords, no stale LED1/LED9 mirroring, X0 all-on");

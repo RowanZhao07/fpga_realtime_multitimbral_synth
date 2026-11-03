@@ -33,7 +33,7 @@ module tb_joystick_top #(parameter EXPRESSION=0);
  if(joystick_vcc!==1'b1)$fatal(1,"Joystick supply dropped during operation");
  localparam integer FOOTER_CELLS=60;
  reg [FOOTER_CELLS*8-1:0] expected_footer=EXPRESSION ?
-   "EC11 ON  L03/16 | STICK L/R OCT | C3/SW VIB | X0+C3 Y ON/OFF" :
+   "EC11 ON  L03/16 | STICK L/R OCT | C3/SW VIB | X0+C1/2 TEMPO " :
    "EC11 ON  L03/16 | STICK L/R OCT | HOLD SW/C3 VIB | RECENTER ";
  reg [10:0] footer_x=28;
  reg [2:0] fast_divider=0;reg fast_sample_ce=0;
@@ -61,10 +61,14 @@ module tb_joystick_top #(parameter EXPRESSION=0);
  if(dut.pixel_levels!==104'd0) $fatal(1,"Idle voice levels not delivered through mailbox");
  for(i=0;i<512;i=i+1) begin
  if(dut.scope_memory.memory[{dut.scope_memory.read_bank,i[8:0]}]!==0) $fatal(1,"Top scope bank mapping");
- if(dut.visual_memory.memory[{dut.visual_memory.read_bank,i[8:0]}]!==0) $fatal(1,"Top spectrum bank mapping");
+ if(i<(EXPRESSION ? 256 : 512) && dut.visual_memory.memory[(dut.visual_memory.read_bank*(EXPRESSION ? 256 : 512))+i]!==0) $fatal(1,"Top spectrum bank mapping");
  end
  $display("TOP: spectrum/scope ready at %t",$time);
- // Exercise the core -> 348-bit mailbox -> renderer path with all 13 notes.
+ if(EXPRESSION) begin
+   if(dut.pixel_metronome[17:7]!={8'd120,3'd3} || dut.pixel_metronome[3])$fatal(1,"Metronome default CDC");
+   wait(dut.screen.display_metronome[17:7]=={8'd120,3'd3});
+ end
+ // Exercise the core -> 707-bit mailbox -> renderer path with all 13 notes.
  // Only touch status is injected; the core envelope/audio clocks remain real.
  force dut.online=1'b1;force dut.chip_online=2'b11;
  force dut.touched={1'b0,5'h1f,4'b0,8'hff}; // X0, sharps, controls, white notes

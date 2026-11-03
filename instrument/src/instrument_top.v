@@ -107,7 +107,8 @@ module instrument_top #(
     end endgenerate
     wire [52:0] core_status;
     wire [44:0] control_status;
-    wire [31:0] performance_info,pixel_performance;
+    wire [32:0] performance_info,pixel_performance;
+    wire [17:0] metronome_info,pixel_metronome;
     wire [83:0] uart_diagnostics;
     wire diagnostics_visible;
     wire [7:0] volume_low;
@@ -140,7 +141,7 @@ module instrument_top #(
         .PRESSURE_ZERO_MV(PRESSURE_ZERO_MV),.PRESSURE_FULL_MV(PRESSURE_FULL_MV),
         .EC11_FILTER_CLOCKS(EC11_FILTER_CLOCKS),.EC11_BUTTON_CLOCKS(EC11_BUTTON_CLOCKS),
         .EC11_TRANSITIONS_PER_STEP(EC11_TRANSITIONS_PER_STEP),.EC11_REVERSE(EC11_REVERSE),.DEFAULT_SUSTAIN(TOUCH_DEBUG),
-        .DEFAULT_TIMBRE((TOUCH_DEBUG || ENABLE_EC11) ? 2'd1 : 2'd0)) core(.encoder_a(encoder_a),.encoder_b(encoder_b),.encoder_sw_n(encoder_sw_n),
+        .DEFAULT_TIMBRE((TOUCH_DEBUG || ENABLE_EC11) ? 3'd1 : 3'd0)) core(.encoder_a(encoder_a),.encoder_b(encoder_b),.encoder_sw_n(encoder_sw_n),
         // The temporary wiring profile keeps synthesis/control in reset (silent).
         // Touch/ADC controllers and their live diagnostics remain independent.
         .sustain_info(sustain_info),.sustain_request(1'b0),.clk(clk),.rst(rst || WIRING_DEBUG || !isolate_core_run),.online(online),.touched(touched),.chip_online(chip_online),
@@ -148,7 +149,7 @@ module instrument_top #(
         .y_online(y_online),.y_mv(y_mv),.y_sample_valid(y_sample_valid),
         .joystick_mv(joystick_mv),.joystick_sw_n(joystick_sw_n),.pressure_sample_valid(pressure_sample_valid),
         .pressure_online(pressure_online),.pressure_mv(pressure_mv),
-        .control_rx(control_rx),.control_tx(control_tx),.control_status(control_status),.performance_info(performance_info),.uart_diagnostics(uart_diagnostics),
+        .control_rx(control_rx),.control_tx(control_tx),.control_status(control_status),.performance_info(performance_info),.metronome_info(metronome_info),.uart_diagnostics(uart_diagnostics),
         .diagnostics_visible(diagnostics_visible),
         .dac_bck(core_bck),.dac_lrck(core_lrck),.dac_din(core_din),.led(led),
         .key_lights(key_lights),.volume_low(volume_low),.octave_select(octave_select),.status(core_status),.monitor_sample(monitor_sample),.monitor_ce(monitor_ce),
@@ -183,8 +184,8 @@ module instrument_top #(
     wire [59:0] wiring_status=(WIRING_DEBUG || ENABLE_EXPRESSION || TOUCH_ISOLATION) ?
         {joystick_mv,adc_diagnostics,touch_diagnostics} : 60'd0;
     wire [59:0] pixel_wiring;
-    status_mailbox #(.WIDTH(688)) mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data({isolate_status,wiring_status,sustain_info,performance_info,octave_select,voice_levels,status}),
-        .dst_clk(pixel_clk),.dst_rst(video_rst),.dst_data({pixel_isolate,pixel_wiring,pixel_sustain,pixel_performance,pixel_octave,pixel_levels,pixel_status}));
+    status_mailbox #(.WIDTH(707)) mailbox(.src_clk(clk),.src_rst(analyser_rst),.src_data({metronome_info,isolate_status,wiring_status,sustain_info,performance_info,octave_select,voice_levels,status}),
+        .dst_clk(pixel_clk),.dst_rst(video_rst),.dst_data({pixel_metronome,pixel_isolate,pixel_wiring,pixel_sustain,pixel_performance,pixel_octave,pixel_levels,pixel_status}));
     wire [10:0] x; wire [9:0] y;
     wire de,hs,vs,blank;
     video_timing timing(.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),.vertical_blank(blank));
@@ -194,10 +195,17 @@ module instrument_top #(
     audio_spectrum #(.ENABLE_SCOPE(1'b0)) analyser(.clk(clk),.rst(workload_visual_rst),.sample_ce(monitor_ce),.sample(monitor_sample),
         .write_enable(visual_write),.write_address(visual_write_address),.write_value(visual_write_data),
         .frame_done(frame_done),.frame_ack(frame_ack),.bin_valid(),.bin_index(),.bin_magnitude());
-    visual_buffer #(.ADDRESS_BITS(9)) visual_memory(.audio_clk(clk),.audio_rst(workload_visual_rst),
-        .write_enable(visual_write),.write_address(visual_write_address[8:0]),.write_value(visual_write_data),
+    wire pair_write;
+    wire [7:0] pair_address,pair_value;
+    spectrum_pair_peak fft_reduce(.clk(clk),.rst(workload_visual_rst),.write_enable(visual_write),
+        .address(visual_write_address[8:0]),.value(visual_write_data),
+        .valid(pair_write),.pair_address(pair_address),.pair_value(pair_value));
+    localparam FFT_ADDRESS_BITS=ENABLE_EXPRESSION ? 8 : 9;
+    wire [FFT_ADDRESS_BITS-1:0] fft_write_address=ENABLE_EXPRESSION ? {1'b0,pair_address} : visual_write_address[8:0];
+    visual_buffer #(.ADDRESS_BITS(FFT_ADDRESS_BITS)) visual_memory(.audio_clk(clk),.audio_rst(workload_visual_rst),
+        .write_enable(ENABLE_EXPRESSION ? pair_write : visual_write),.write_address(fft_write_address),.write_value(ENABLE_EXPRESSION ? pair_value : visual_write_data),
         .frame_done(frame_done),.frame_ack(frame_ack),.pixel_clk(pixel_clk),.pixel_rst(workload_pixel_rst),
-        .vertical_blank(blank),.read_address(visual_read_address[8:0]),.read_value(visual_read_data),.ready(visual_ready));
+        .vertical_blank(blank),.read_address(visual_read_address[FFT_ADDRESS_BITS-1:0]),.read_value(visual_read_data),.ready(visual_ready));
     // Fixed 3x visual zoom is shared by the waveform and both XY axes only.
     // Keep the FFT and audio output connected to unmodified monitor_sample.
     wire signed [15:0] display_sample;
@@ -242,7 +250,7 @@ module instrument_top #(
         assign isolate_status=0;
     end endgenerate
     instrument_screen #(.TOUCH_ISOLATION(TOUCH_ISOLATION),.ENABLE_EXPRESSION(ENABLE_EXPRESSION),.WIRING_DEBUG(WIRING_DEBUG),.ENABLE_JOYSTICK(ENABLE_JOYSTICK),.ENABLE_EC11(ENABLE_EC11),.TOUCH_DEBUG(TOUCH_DEBUG)) screen(.isolation_status(pixel_isolate),.wiring_status(pixel_wiring),.sustain_info(pixel_sustain),.clk(pixel_clk),.rst(video_rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
-        .vertical_blank(blank),.status(pixel_status),.performance_info(pixel_performance),.voice_levels(pixel_levels),.octave_select(pixel_octave),
+        .vertical_blank(blank),.status(pixel_status),.performance_info(pixel_performance),.metronome_info(pixel_metronome),.voice_levels(pixel_levels),.octave_select(pixel_octave),
         .scope_ready(scope_ready),.scope_data(scope_read_data),.scope_address(scope_read_address),
         .liss_ready(liss_ready),.liss_data(liss_data),.liss_address(liss_address),
         .visual_ready(visual_ready),.visual_data(visual_read_data),

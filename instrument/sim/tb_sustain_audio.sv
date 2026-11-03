@@ -9,7 +9,7 @@ module tb_sustain_audio;
  genvar v;
  generate for(v=0;v<2;v=v+1) begin: bank
   polyphonic_engine engine(.sustain_strength(5'd3),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
-   .sustain_down(v==1 ? pedal : 1'b0),.timbre(2'd1),.octave_select(2'd1),.vibrato(1'b0),
+   .sustain_down(v==1 ? pedal : 1'b0),.timbre(3'd1),.octave_select(2'd1),.vibrato(1'b0),
    .mixed(mixed[v]),.valid(valid[v]),.active(),.voice_levels());
   audio_output output_stage(.clk(clk),.rst(rst),.valid(valid[v]),.mixed(mixed[v]),
    .volume(13'd4096),.calibration(1'b0),.echo_enable(1'b0),.sample(pcm[v]),.clipped(clipped[v]));

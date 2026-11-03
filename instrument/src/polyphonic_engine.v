@@ -4,7 +4,8 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
     input wire [4:0] sustain_strength,
     input wire sustain_down,clk,rst,sample_ce,
     input wire [12:0] gates,
-    input wire [1:0] timbre,octave_select,
+    input wire [2:0] timbre,
+    input wire [1:0] octave_select,
     input wire vibrato,
     input wire signed [15:0] pitch_bend,
     output reg signed [18:0] mixed=0,
@@ -16,7 +17,7 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
 );
     reg [31:0] phase[0:31],steps[0:31],age[0:31];
     reg [3:0] owner[0:31];
-    reg [1:0] preset[0:31];
+    reg [2:0] preset[0:31];
     reg [15:0] brightness[0:31];
     reg signed [15:0] last_sample[0:31],steal_tail[0:31];
     reg [3:0] fade_left[0:31];
@@ -35,7 +36,8 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
         note_frequency #(.KEY(v)) tuning(.step(key_steps[v]));
     end endgenerate
     reg [12:0] previous_gates=0,frame_gates=0,rising=0;
-    reg [1:0] frame_octave=1,frame_timbre=0;
+    reg [1:0] frame_octave=1;
+    reg [2:0] frame_timbre=0;
     reg frame_vibrato=0;
     reg signed [15:0] frame_bend=0;
     reg signed [48:0] bend_product=0;
@@ -56,7 +58,7 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
     // Even 13 simultaneous onsets + all 32 audio voices finish before 1024 clocks.
     wire [31:0] selected_step=frame_octave==0 ? key_steps[key]>>1 :
         frame_octave==1 ? key_steps[key] : frame_octave==2 ? key_steps[key]<<1 : key_steps[key]<<2;
-    reg [9:0] address=0;
+    reg [10:0] address=0;
     wire signed [15:0] wave;
     timbre_lut shared_table(.address(address),.value(wave));
     reg [7:0] fraction=0;
@@ -74,9 +76,14 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
     reg [5:0] next_count=0;
     wire [7:0] level=envelopes[slot][15:8];
     wire [7:0] old_level=next_levels>>(owner[slot]*8);
-    wire [15:0] color_floor=preset[slot]==2 ? 16'd18000 : 16'd0;
+    wire [15:0] color_floor=preset[slot]==2 ? 16'd18000 :
+        preset[slot]==4 ? 16'd40000 : preset[slot]==5 ? 16'd65535 :
+        preset[slot]==6 ? 16'd4000 : preset[slot]==7 ? 16'd10000 : 16'd0;
     wire [15:0] color_decay=preset[slot]==1 ? (brightness[slot]>>11)+1'b1 :
-        preset[slot]==3 ? (brightness[slot]>>9)+1'b1 : 16'd1;
+        preset[slot]==3 ? (brightness[slot]>>9)+1'b1 :
+        preset[slot]==4 ? 16'd4 : preset[slot]==5 ? 16'd0 :
+        preset[slot]==6 ? (brightness[slot]>>10)+1'b1 :
+        preset[slot]==7 ? (brightness[slot]>>12)+1'b1 : 16'd1;
     always @(posedge clk) begin
         valid<=0;envelope_tick<=0;clear_voice<=0;
         if(rst) begin
@@ -140,9 +147,9 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
             5:begin base<=wave;address<={preset[slot],(phase[slot][31:24]+8'd1)};
                 bent_step<=$signed({1'b0,steps[slot]})+(bend_product>>>16);state<=6;end
             6:begin slope<=$signed(wave)-$signed(base);state<=7;end
-            7:begin interp<=slope*$signed({1'b0,fraction});address<={2'b0,phase[slot][31:24]};state<=8;end
+            7:begin interp<=slope*$signed({1'b0,fraction});address<={3'b0,phase[slot][31:24]};state<=8;end
             8:begin rich_wave<=$signed(base)+((interp+26'sd128)>>>8);sine_base<=wave;
-                address<={2'b0,(phase[slot][31:24]+8'd1)};state<=9;end
+                address<={3'b0,(phase[slot][31:24]+8'd1)};state<=9;end
             9:begin slope<=$signed(wave)-$signed(sine_base);state<=10;end
             10:begin interp<=slope*$signed({1'b0,fraction});state<=11;end
             11:begin pure_wave<=$signed(sine_base)+((interp+26'sd128)>>>8);state<=12;end

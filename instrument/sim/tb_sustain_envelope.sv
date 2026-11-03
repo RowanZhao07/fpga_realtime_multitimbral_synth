@@ -6,7 +6,7 @@ module tb_sustain_envelope;
  genvar t;
  generate for(t=0;t<4;t=t+1) begin: bank
   envelope_adsr dut(.sustain_strength(5'd3),.clk(clk),.rst(rst),.sample_ce(1'b1),.gate(gate),
-   .sustain_down(pedal),.timbre(t[1:0]),.level(level[t]),.active(active[t]));
+   .sustain_down(pedal),.timbre(t[2:0]),.level(level[t]),.active(active[t]));
  end endgenerate
  task tick(input integer n); repeat(n) @(negedge clk); endtask
  task clear; rst=1;tick(2);rst=0;gate=0;pedal=0;tick(2);endtask

@@ -5,7 +5,7 @@ module tb_octave_controls;
     reg [17:0] touched=0;
     reg [7:0] command=0;reg [15:0] value=0;
     wire [12:0] gates,volume,target_mask;
-    wire [1:0] octave_select,timbre;
+    wire [1:0] octave_select;wire [2:0] timbre;
     wire vibrato,spectrum_mode,echo_enabled,guide_enabled;
     wire [8:0] position;
     performance_control #(.HOLD_SAMPLES(20),.REPEAT_SAMPLES(4)) dut(

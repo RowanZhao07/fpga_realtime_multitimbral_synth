@@ -7,7 +7,7 @@ module tb_wiring_screen;
     wire [23:0] rgb;wire od,oh,ov;
     instrument_screen #(.WIRING_DEBUG(1),.ENABLE_JOYSTICK(1)) dut(
         .wiring_status(wiring),.sustain_info(6'd0),.clk(clk),.rst(rst),.x(x),.y(y),.de(de),.hs(1'b0),.vs(1'b0),
-        .vertical_blank(blank),.status(status),.performance_info(32'd0),.voice_levels(104'd0),.octave_select(2'd1),
+        .vertical_blank(blank),.status(status),.performance_info(33'd0),.voice_levels(104'd0),.octave_select(2'd1),
         .scope_ready(1'b0),.scope_data(8'd0),.scope_address(),.visual_ready(1'b0),.visual_data(8'd0),.visual_address(),
         .rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     reg [2:0] de_pipe=0;

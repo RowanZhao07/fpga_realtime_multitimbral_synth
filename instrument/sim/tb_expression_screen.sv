@@ -12,7 +12,8 @@ module tb_expression_screen;
    if(audio_ce) begin phase<=phase+1'b1;audio_sample<=$rtoi(10000.0*$sin(6.28318530718*phase/128.0));end
  end
  reg rst=1,blank=0;reg [10:0] x=0;reg [9:0] y=0;
- reg [203:0] status=0;reg [31:0] perf=0;reg [59:0] wiring=0;
+ reg [17:0] metro={8'd120,3'd3,3'd0,1'b0,1'b0,2'd0};
+ reg [203:0] status=0;reg [32:0] perf=0;reg [59:0] wiring=0;
  wire [23:0] rgb;
  wire liss_ready,liss_data;wire [13:0] liss_address;wire [8:0] scope_address;
  wire [9:0] visual_address;reg [7:0] spectrum_data=0;
@@ -25,14 +26,14 @@ module tb_expression_screen;
  always @(posedge clk) scope_data<=scope_scaled>>>8;
  // A matching bin-32 Hann-window display fixture, not a measured FFT export.
  always @(posedge clk) case(visual_address[8:0])
-   31,33:spectrum_data<=132;32:spectrum_data<=150;default:spectrum_data<=0;
+   15:spectrum_data<=132;16:spectrum_data<=150;default:spectrum_data<=0;
  endcase
  lissajous_capture xy(.audio_clk(audio_clk),.audio_rst(rst),.sample_ce(audio_ce),.sample(xy_scaled),
  .pixel_clk(clk),.pixel_rst(rst),.vertical_blank(blank),.read_address(liss_address),
  .read_value(liss_data),.ready(liss_ready));
  instrument_screen #(.ENABLE_EXPRESSION(1),.ENABLE_JOYSTICK(1),.ENABLE_EC11(1)) dut(
  .clk(clk),.rst(rst),.x(x),.y(y),.de(1'b1),.hs(1'b0),.vs(1'b0),.vertical_blank(blank),
- .status(status),.performance_info(perf),.voice_levels({13{8'd160}}),.octave_select(2'd1),
+ .status(status),.performance_info(perf),.metronome_info(metro),.voice_levels({13{8'd160}}),.octave_select(2'd1),
  .sustain_info({1'b1,5'd3}),.wiring_status(wiring),.scope_ready(1'b1),.scope_data(scope_data),.scope_address(scope_address),
  .liss_ready(liss_ready),.liss_data(liss_data),.liss_address(liss_address),
  .visual_ready(1'b1),.visual_data(spectrum_data),.visual_address(visual_address),.rgb(rgb));
@@ -53,9 +54,21 @@ module tb_expression_screen;
  perf[3:2]=3;latch;character_at(612,296,"C");
  perf[0]=1;latch;character_at(600,356,"C");
  perf[1]=1;latch;character_at(672,356,"N");
- character_at(436,568,"C");character_at(580,568,"X");character_at(736,568,"F");
+ character_at(436,568,"C");character_at(580,568,"X");character_at(724,568,"O");
  perf[3:2]=2;latch;
- character_at(256,204,"3");character_at(508,204,"3");character_at(736,24,"3");
+ character_at(28,408,"M");character_at(208,408,"O");character_at(232,408,"F");
+ character_at(28,436,"1");character_at(52,436,"2");character_at(76,436,"0");
+ character_at(208,444,"4");character_at(232,444,"4");
+ metro={8'd137,3'd4,3'd3,1'b1,1'b1,2'd1};latch;
+ character_at(52,436,"3");character_at(208,444,"6");character_at(232,444,"8");
+ character_at(28,474,"D");character_at(208,474,"4");
+ character_at(256,204,"3");character_at(508,204,"3");character_at(736,24,"8");
+ // New bank travels separately from the legacy two-bit status field.
+ perf[32]=1;status[17:16]=0;latch;character_at(476,24,"F");
+ status[17:16]=1;latch;character_at(476,24,"O");
+ status[17:16]=2;latch;character_at(476,24,"P");
+ status[17:16]=3;latch;character_at(476,24,"B");
+ perf[32]=0;status[17:16]=0;latch;
  status[37]=1;latch;character_at(708,320,8'd32); // No LIMIT badge at any soft-knee duty.
  f=$fopen("screen_expression.ppm","w");$fdisplay(f,"P3\n800 600\n255");
  // Three registered pixel stages. Drain the same number after the last pixel.

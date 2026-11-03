@@ -37,7 +37,7 @@ module tb_touch_link;
         end
     endfunction
     integer before_attacks;
-    reg [1:0] before_preset;
+    reg [2:0] before_preset;
     instrument_core core(.encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_info(),.sustain_request(1'b0),.clk(clk),.rst(rst),.online(online),.touched(touched),.chip_online(chip_online),
         .control_rx(1'b1),.control_tx(),.control_status(),.pressure_online(1'b0),.pressure_mv(12'd0),
         .dac_bck(bck),.dac_lrck(lrck),.dac_din(din),.led(led));
@@ -160,12 +160,12 @@ module tb_touch_link;
             $fatal(1,"Single held key retriggered or activated another note");
         wait_touch(12'h101); repeat(3000) @(posedge clk);
         wait_touch(12'h001); repeat(3000) @(posedge clk);
-        if(core.timbre!==((before_preset+1)&3) ||
+        if(core.timbre!==((before_preset+1)&7) ||
            core.engine.preset[held_slot(0)]!==before_preset ||
            note_attacks!=before_attacks+1)
             $fatal(1,"Preset change must preserve the held voice");
         wait_touch(0); repeat(3000) @(posedge clk);
-        if((~led & 8'hF0)!==(8'h10 << core.timbre))
+        if((~led & 8'hF0)!==(8'h10 << core.timbre[1:0]))
             $fatal(1,"Idle preset indicator mismatch");
         wait_touch(12'h001); repeat(3000) @(posedge clk);
         if(core.engine.preset[held_slot(0)]!==core.timbre ||

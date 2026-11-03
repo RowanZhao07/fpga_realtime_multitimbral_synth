@@ -18,7 +18,7 @@ module tb_video;
     reg expected_adc_online=0,expected_debug=0;
     integer expected_mv=0;
     instrument_screen screen(.sustain_info(6'd0),.clk(clk),.rst(rst),.x(x),.y(y),.de(de),.hs(hs),.vs(vs),
-        .vertical_blank(blank),.status(status),.performance_info({6'd13,10'd76,9'd4,7'd0}),.visual_ready(1'b1),.visual_data(data),
+        .vertical_blank(blank),.status(status),.performance_info({1'b0,6'd13,10'd76,9'd4,7'd0}),.visual_ready(1'b1),.visual_data(data),
         .voice_levels(fixture_levels),.octave_select(octave_select),.scope_ready(1'b1),.scope_data(data),.scope_address(),
         .visual_address(addr),.rgb(rgb),.out_de(od),.out_hs(oh),.out_vs(ov));
     reg [2:0] sync1=0,sync2=0,sync3=0;

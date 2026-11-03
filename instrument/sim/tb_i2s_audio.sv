@@ -60,9 +60,9 @@ module tb_i2s_audio;
         f=$fopen("i2s_audio_samples.csv","w");if(!f) $fatal(1,"Capture open failed");
         repeat(5) @(negedge clk);rst=0;
         send("V4096");send("E0");frames(4200);
-        for(tone=0;tone<4;tone=tone+1) begin
+        for(tone=0;tone<8;tone=tone+1) begin
             send($sformatf("T%0d",tone));
-            if(status[17:16]!=tone) $fatal(1,"Timbre command not applied");
+            if(dut.timbre!=tone) $fatal(1,"Timbre command not applied");
             // Changing controls enters through UART; notes enter through the
             // real control mapping. No oscillator, gain or clock is forced.
             @(negedge clk);touched=1;capture=1;frames(8000);
@@ -76,5 +76,5 @@ module tb_i2s_audio;
         $display("PASS: %0d signed stereo frames, exact PCM equality and 64 BCK/frame",frames_checked);
         $display("ALL TESTS PASSED");$finish;
     end
-    initial begin #2000000000;$fatal(1,"I2S audio watchdog");end
+    initial begin #(64'd4000000000);$fatal(1,"I2S audio watchdog");end
 endmodule

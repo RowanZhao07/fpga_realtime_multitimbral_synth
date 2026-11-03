@@ -28,7 +28,11 @@ __pycache__/
 /backups/
 /tmp/
 /.local/
-/videos/
+/videos/*
+!/videos/render.py
+!/videos/project.json
+!/videos/README.md
+!/videos/节拍器台词.txt
 /outputs/
 # Local stage evidence (includes rendered pages of the supplied competition PDF).
 /outputs/acceptance-20261031/

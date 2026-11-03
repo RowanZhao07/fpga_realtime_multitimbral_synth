@@ -3,7 +3,7 @@ module tb_synthesis;
     reg clk=0; always #10 clk=~clk;
     reg rst=1,ce=0,vibrato=0;
     reg [12:0] gates=0;
-    reg [1:0] timbre=0;
+    reg [2:0] timbre=0;
     wire signed [18:0] mixed;
     wire valid; wire [12:0] active;
     polyphonic_engine dut(.sustain_strength(5'd3),.sustain_down(1'b0),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),

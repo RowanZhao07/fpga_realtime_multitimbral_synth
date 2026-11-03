@@ -60,7 +60,7 @@ module tb_uart_control;
         line("P2","E");line("P01","E");line("P","E");
         line("V4096","K");if(last_value!=4096) $fatal(1,"Volume upper bound");
         line("V0","K");if(last_value!=0) $fatal(1,"Mute parse");
-        line("T4","E");line("V4097","E");line("V99999","E");
+        line("T8","E");line("V4097","E");line("V99999","E");
         line("G2","E");line("B39","E");line("B241","E");
         line("B40","K");line("B240","K");
         line("A1001","K");if(last_value!=16'h1001) $fatal(1,"Score hex decode");

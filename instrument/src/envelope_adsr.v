@@ -5,24 +5,32 @@ module envelope_adsr #(parameter VARIABLE_SUSTAIN=1'b0)(
     input wire [4:0] sustain_strength,
     input wire sustain_down,
     input wire clk, rst, sample_ce, gate,
-    input wire [1:0] timbre,
+    input wire [2:0] timbre,
     output reg [15:0] level=0,
     output wire active
 );
     localparam IDLE=0, ATTACK=1, DECAY=2, SUSTAIN=3, RELEASE=4;
     reg [2:0] state=IDLE;
     reg previous_gate=0;
-    reg [1:0] preset=0;
-    wire [15:0] attack_step= preset==0 ? 16'd512 : preset==1 ? 16'd1024 : preset==2 ? 16'd32 : 16'd4096;
-    wire [15:0] decay_step= preset==1 ? 16'd12 : preset==3 ? 16'd4 : 16'd8;
-    wire [15:0] sustain_level= preset==0 ? 16'd50000 : preset==1 ? 16'd0 : preset==2 ? 16'd50000 : 16'd0;
-    wire [15:0] piano_decay=level>=8192 ? (level>>13) : 16'd1;
+    reg [2:0] preset=0;
+    wire [15:0] attack_step= preset==0 ? 16'd512 : preset==1 ? 16'd1024 :
+        preset==2 ? 16'd32 : preset==3 ? 16'd4096 : preset==4 ? 16'd192 :
+        preset==5 ? 16'd1024 : preset==6 ? 16'd2048 : 16'd1024;
+    wire [15:0] decay_step= preset==1 ? 16'd12 : preset==3 ? 16'd4 :
+        preset==4 ? 16'd12 : preset==5 ? 16'd32 : 16'd8;
+    wire [15:0] sustain_level= preset==0 || preset==2 ? 16'd50000 :
+        preset==4 ? 16'd56000 : preset==5 ? 16'd60000 : 16'd0;
+    wire struck=(preset==1 || preset==6 || preset==7);
+    wire [15:0] piano_decay=preset==6 ? (level>=2048 ? level>>11 : 16'd1) :
+        (level>=8192 ? level>>13 : 16'd1);
     // Fractional decrement keeps very quiet pedal tails decaying to zero.
     reg [1:0] pedal_fraction=0;
     wire [17:0] pedal_total={2'b0,piano_decay}+{16'd0,pedal_fraction};
     wire [15:0] effective_decay=sustain_down ? pedal_total[17:2] : piano_decay;
     wire [15:0] release_step= preset==0 ? 16'd16 :
-        preset==1 ? (level>=1024 ? (level>>10) : 16'd1) : preset==2 ? 16'd6 : 16'd6;
+        preset==1 || preset==7 ? (level>=1024 ? (level>>10) : 16'd1) :
+        preset==4 ? 16'd48 : preset==5 ? 16'd256 :
+        preset==6 ? (level>=512 ? level>>9 : 16'd1) : 16'd6;
     // Level 1..16: one original decrement per (level+1) sample ticks.
     // Small per-voice counters avoid variable dividers and multipliers.
     wire [4:0] strength=sustain_strength<1 ? 5'd1 : sustain_strength>16 ? 5'd16 : sustain_strength;
@@ -38,14 +46,14 @@ module envelope_adsr #(parameter VARIABLE_SUSTAIN=1'b0)(
         else if(sample_ce) begin
             previous_gate<=gate;
             if(!sustain_down) release_pedal<=0;
-            if(!slow_decay || (gate && !previous_gate) || state!=DECAY || preset!=1) decay_count<=0;
+            if(!slow_decay || (gate && !previous_gate) || state!=DECAY || !struck) decay_count<=0;
             else if(decay_count>=strength) decay_count<=0;
             else decay_count<=decay_count+1'b1;
             if(!slow_release || (gate && !previous_gate) || state!=RELEASE) release_count<=0;
             else if(release_count>=strength) release_count<=0;
             else release_count<=release_count+1'b1;
             if(!sustain_down || (gate && !previous_gate)) pedal_fraction<=0;
-            else if(state==DECAY && preset==1) pedal_fraction<=pedal_total[1:0];
+            else if(state==DECAY && struck) pedal_fraction<=pedal_total[1:0];
             if(gate && !previous_gate) begin state<=ATTACK; preset<=timbre; release_pedal<=0; end
             // Preserve the physical gate edge so a held tail can be re-struck.
             else if(!gate && (VARIABLE_SUSTAIN || !sustain_down) &&
@@ -56,7 +64,7 @@ module envelope_adsr #(parameter VARIABLE_SUSTAIN=1'b0)(
                 IDLE: level<=0;
                 ATTACK: if(level>=16'hFFFF-attack_step) begin level<=16'hFFFF; state<=DECAY; end
                         else level<=level+attack_step;
-                DECAY: if(preset==1) begin
+                DECAY: if(struck) begin
                            if(level<=selected_decay) begin level<=0;state<=SUSTAIN;end
                            else level<=level-selected_decay;
                        end

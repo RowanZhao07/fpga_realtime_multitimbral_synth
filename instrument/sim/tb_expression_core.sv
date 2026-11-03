@@ -2,7 +2,7 @@
 module tb_expression_core;
  reg clk=0;always #10 clk=~clk;
  reg rst=1,rx=1,sv=0,online=1,ponline=0,pvalid=0;reg [11:0] ymv=1650;reg [17:0] touched=0;
- wire ce;wire signed [15:0] pcm;wire [31:0] info;
+ wire ce;wire signed [15:0] pcm;wire [32:0] info;
  instrument_core #(.ENABLE_EXPRESSION(1),.ENABLE_JOYSTICK(1),.ENABLE_EC11(1),.DEFAULT_TIMBRE(1),.UART_CLOCKS_PER_BIT(8)) dut(
  .clk(clk),.rst(rst),.online(online),.chip_online(2'b11),.touched(touched),
  .joystick_online(1'b1),.joystick_sample_valid(1'b0),.joystick_mv(12'd1650),.joystick_sw_n(1'b1),
@@ -11,6 +11,7 @@ module tb_expression_core;
  .encoder_a(1'b1),.encoder_b(1'b1),.encoder_sw_n(1'b1),.sustain_request(1'b0),.control_rx(rx),
  .monitor_ce(ce),.monitor_sample(pcm),.performance_info(info));
  defparam dut.controls.HOLD_SAMPLES=8;
+ defparam dut.metronome.controls.HOLD_SAMPLES=4;
  task ticks(input integer n);repeat(n)@(negedge clk);endtask
  task frame;begin @(posedge ce);wait(dut.effects_valid);ticks(6);if(dut.engine_overrun || (^pcm)===1'bx)$fatal(1,"Real-rate output failure");end endtask
  task frames(input integer n);repeat(n)frame;endtask
@@ -42,8 +43,9 @@ module tb_expression_core;
  if(delta!=23012828)$fatal(1,"Neutral tuning changed");
  $fdisplay(f,"%0d,%0d,%0.8f",dut.pitch_bend,delta,delta*48828.125/4294967296.0);
  touched=18'h801;frames(2);if(!dut.vibrato)$fatal(1,"VIB key");
- touched=18'h20801;frames(2);if(dut.vibrato || dut.y_enabled)$fatal(1,"Y local toggle conflicts with VIB");
- frames(10);if(dut.y_enabled)$fatal(1,"Held combo retoggled");touched=1;frames(2);
+ touched=18'h20801;frames(2);if(dut.vibrato || !dut.y_enabled)$fatal(1,"Metronome chord conflicts with VIB/Y");
+ frames(10);if(!dut.y_enabled || !dut.metro_enabled)$fatal(1,"Metronome hold did not toggle exactly once");touched=1;frames(2);
+ touched=18'h20801;frames(10);if(dut.metro_enabled)$fatal(1,"Metronome off");touched=1;frames(100);
  command("F","2");frames(150);if(info[3:2]!=2 || dut.echo_enabled)$fatal(1,"Reverb selection/status");
  command("F","3");frames(150);if(info[3:2]!=3)$fatal(1,"Chorus selection/status");
  command("E","1");frames(2);if(info[3:2]!=1 || !dut.echo_enabled)$fatal(1,"Legacy E selects delay");
@@ -52,7 +54,7 @@ module tb_expression_core;
  command("T","2");touched=5;frames(4);
  if(dut.engine.preset[0]!=1 || dut.engine.preset[1]!=2)$fatal(1,"Held timbre changed / new timbre not applied");
  online=0;frames(2);if(dut.vibrato || dut.y_armed)$fatal(1,"Offline expression");
- $fclose(f);$display("PASS: actual UART F/Y/E, local VIB/Y/FX controls, real-rate held-note bend, timbre latch, status and fail-safe");
+ $fclose(f);$display("PASS: actual UART F/Y/E, local VIB/metronome/FX controls, real-rate held-note bend, timbre latch, status and fail-safe");
  $display("ALL TESTS PASSED");$finish;
  end
  initial begin #150000000;$fatal(1,"Expression core watchdog");end

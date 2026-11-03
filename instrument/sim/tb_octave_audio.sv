@@ -5,7 +5,7 @@ module tb_octave_audio;
     reg clk=0;always #5 clk=~clk;
     reg rst=1,ce=0,pedal=0,vibrato=0;
     reg [12:0] gates=0;
-    reg [1:0] octave_select=1,reference_octave=1,timbre=0;
+    reg [1:0] octave_select=1,reference_octave=1;reg [2:0] timbre=0;
     wire signed [18:0] mixed,reference_mixed;
     wire valid,reference_valid,clipped;
     wire [12:0] active;

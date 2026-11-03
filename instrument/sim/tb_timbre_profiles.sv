@@ -8,7 +8,7 @@ module tb_timbre_profiles;
     genvar tone;
     generate for(tone=0;tone<4;tone=tone+1) begin: bank
         envelope_adsr envelope(.sustain_strength(5'd3),.sustain_down(1'b0),.clk(clk),.rst(rst),.sample_ce(ce),.gate(gate),
-            .timbre(tone[1:0]),.level(levels[tone]),.active(active[tone]));
+            .timbre(tone[2:0]),.level(levels[tone]),.active(active[tone]));
     end endgenerate
     task frames(input integer count);
         repeat(count) begin @(negedge clk);ce=1;@(negedge clk);ce=0;end

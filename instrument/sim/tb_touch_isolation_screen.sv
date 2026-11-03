@@ -6,7 +6,7 @@ module tb_touch_isolation_screen;
  reg [279:0] info=0;reg [203:0] status=0;wire [23:0] rgb;
  instrument_screen #(.TOUCH_ISOLATION(1),.ENABLE_EXPRESSION(1)) dut(
  .clk(clk),.rst(rst),.x(x),.y(y),.de(1'b1),.hs(1'b0),.vs(1'b0),.vertical_blank(blank),
- .isolation_status(info),.status(status),.performance_info(32'd0),.voice_levels(104'd0),.octave_select(2'd1),
+ .isolation_status(info),.status(status),.performance_info(33'd0),.voice_levels(104'd0),.octave_select(2'd1),
  .sustain_info(6'd0),.wiring_status(60'd0),.scope_ready(1'b0),.scope_data(8'd0),.visual_ready(1'b0),.visual_data(8'd0),.rgb(rgb));
  task latch;begin blank=1;@(negedge clk);blank=0;repeat(5)@(negedge clk);end endtask
  task character_at(input integer xx,yy,input [7:0] expected);

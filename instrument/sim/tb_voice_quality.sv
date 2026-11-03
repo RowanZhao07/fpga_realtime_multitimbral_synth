@@ -8,7 +8,7 @@ module tb_voice_quality;
     wire active;
     localparam [31:0] STEP=32'd46025656; // C5 at 48828.125 Hz
     synthesis_voice dut(.sustain_down(1'b0),.clk(clk),.rst(rst),.sample_ce(ce),.gate(gate),
-        .phase_step(STEP),.timbre(2'd0),.sample(sample),.active(active));
+        .phase_step(STEP),.timbre(3'd0),.sample(sample),.active(active));
     task frame;
         begin
             @(negedge clk);ce=1;
@@ -59,7 +59,7 @@ module tb_chord_audio;
     reg clk=0;always #10 clk=~clk;
     reg rst=1,ce=0;
     reg [12:0] gates=0;
-    reg [1:0] timbre=0;
+    reg [2:0] timbre=0;
     wire signed [18:0] mixed;
     wire signed [15:0] sample;
     wire valid,clipped;

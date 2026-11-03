@@ -6,7 +6,7 @@ module tb_voice_feedback;
     wire signed [18:0] mixed;wire valid;
     always @(posedge clk) if(rst) divider<=0;else divider<=divider==1023 ? 0 : divider+1'b1;
     polyphonic_engine dut(.sustain_strength(5'd3),.sustain_down(1'b0),.octave_select(2'd1),.clk(clk),.rst(rst),.sample_ce(ce),.gates(gates),
-        .timbre(2'd2),.vibrato(1'b0),.mixed(mixed),.valid(valid),.active(active),.voice_levels(levels));
+        .timbre(3'd2),.vibrato(1'b0),.mixed(mixed),.valid(valid),.active(active),.voice_levels(levels));
     task samples(input integer n);
         repeat(n) begin @(negedge clk);while(!ce) @(negedge clk);@(negedge clk);end
     endtask

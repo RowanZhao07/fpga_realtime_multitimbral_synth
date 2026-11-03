@@ -4,20 +4,24 @@ module tb_voice_allocator #(parameter VARIABLE_SUSTAIN=1'b0,parameter PITCH_BEND
  reg rst=1,ce=0,pedal=1;reg [12:0] gates=0;reg [1:0] octave=0;
  wire [5:0] count;wire overrun,valid;wire signed [18:0] mixed;
  polyphonic_engine #(.ENABLE_PITCH_BEND(PITCH_BEND),.VARIABLE_SUSTAIN(VARIABLE_SUSTAIN)) dut(.pitch_bend(16'sd8026),.sustain_strength(5'd16),.clk(clk),.rst(rst),.sample_ce(ce),.sustain_down(pedal),
- .gates(gates),.octave_select(octave),.timbre(2'd0),.vibrato(1'b0),
+ .gates(gates),.octave_select(octave),.timbre(3'd0),.vibrato(1'b0),
  .mixed(mixed),.valid(valid),.voice_count(count),.overrun(overrun));
 `ifdef __ICARUS__
  // Icarus does not schedule the zero-address case LUT's initial @* evaluation.
  // Exercise an address transition during reset only; all runtime PCM/deadline
  // assertions below stay enabled, and XSim uses the original startup sequence.
- initial begin #1;force dut.address=10'd1;#1;release dut.address;end
+ initial begin #1;force dut.address=11'd1;#1;release dut.address;end
 `endif
  integer frames=0,cycles,k,f,max_cycles=0;reg [31:0] c3_phase;
  task frame;
  begin
  @(negedge clk);ce=1;@(negedge clk);ce=0;cycles=0;
  while(!valid && cycles<1000)begin @(negedge clk);cycles++;end
- if(!valid || overrun || (^mixed)===1'bx)$fatal(1,"Frame missed deadline or invalid PCM");
+ if(!valid || overrun || (^mixed)===1'bx)begin
+   $display("frame=%0d valid=%b overrun=%b mixed=%h addr=%h wave=%h pure=%h rich=%h brightness=%h preset=%h phase=%h env=%h",
+     frames,valid,overrun,mixed,dut.address,dut.wave,dut.pure_wave,dut.rich_wave,dut.brightness[0],dut.preset[0],dut.phase[0],dut.envelopes[0]);
+   $fatal(1,"Frame missed deadline or invalid PCM");
+ end
  if(cycles>950)$fatal(1,"Sample workload exceeds budget");
  if(cycles>max_cycles)max_cycles=cycles;
  repeat(8)@(negedge clk);frames++;

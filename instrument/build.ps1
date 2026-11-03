@@ -1,10 +1,10 @@
-param([string]$GowinShell, [switch]$CheckTools, [switch]$Expression, [switch]$SynthesisOnly)
+﻿param([string]$GowinShell, [switch]$CheckTools, [switch]$Expression, [switch]$SynthesisOnly)
 $ErrorActionPreference='Stop'
 . (Join-Path $PSScriptRoot 'tools/toolchain.ps1')
 $GowinShell = Resolve-GowinShell $GowinShell
 if ($CheckTools) { Write-Output "Gowin shell: $GowinShell"; return }
 $buildBase = 'instrument_expression'
-$releaseBase = 'instrument_expression_ui_v2_3x'
+$releaseBase = 'instrument_expression_metronome_v2_louder'
 # Never publish to the frozen instrument_expression_link_v1.fs baseline.
 $previousSynthesisOnly = $env:INSTRUMENT_SYNTHESIS_ONLY
 $env:INSTRUMENT_SYNTHESIS_ONLY = if($SynthesisOnly) { '1' } else { '0' }
@@ -53,11 +53,11 @@ try {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
     Move-Item -LiteralPath $buildFile -Destination $releaseFile -Force
     $releaseHash=Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256
-    $evidenceDir=Join-Path $repoRoot 'outputs/expression-ui-v2-3x'
+    $evidenceDir=Join-Path $repoRoot 'outputs/expression-metronome-v2-louder'
     New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
     Copy-Item -LiteralPath "impl/pnr/$buildBase.tr","impl/pnr/$buildBase.rpt.txt","impl/pnr/$buildBase.pin.html",'build.log' -Destination $evidenceDir -Force
     [pscustomobject]@{
-        profile='expression-ui-v2-3x';baseline='instrument_expression_link_v1.fs';display_gain=3;
+        profile='expression-metronome-v2-louder';baseline='instrument_expression_metronome_v1.fs';metronome=$true;metronome_gain_relative_to_m1=4;display_gain=3;timbres=8;
         built_at_utc=$buildStarted.ToUniversalTime().ToString('o');
         bitstream="$releaseBase.fs";sha256=$releaseHash.Hash;bytes=(Get-Item -LiteralPath $releaseFile).Length;
         tool=$GowinShell;setup_violations=0;hold_violations=0;minimum_pulse_width_passed=$true;

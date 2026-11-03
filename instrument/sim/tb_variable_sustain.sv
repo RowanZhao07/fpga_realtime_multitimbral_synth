@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 module tb_variable_sustain;
  reg clk=0;always #5 clk=~clk;
- reg rst=1,gate=0,pedal=1;reg [1:0] timbre=0;
+ reg rst=1,gate=0,pedal=1;reg [2:0] timbre=0;
  reg [4:0] strength[0:15];wire [15:0] level[0:15];wire [15:0] active;
  integer tails[0:15];integer previous[0:15];integer t,i,k,elapsed;
  genvar n;
@@ -12,7 +12,7 @@ module tb_variable_sustain;
  end endgenerate
  task tick(input integer count);repeat(count)@(negedge clk);endtask
  initial begin
-  for(t=0;t<4;t=t+1)begin
+  for(t=0;t<8;t=t+1)begin
    timbre=t;rst=1;gate=0;pedal=1;
    for(i=0;i<16;i=i+1)begin strength[i]=i+1;tails[i]=0;end
    tick(3);rst=0;gate=1;tick(2200);gate=0;tick(1);elapsed=0;
@@ -21,7 +21,9 @@ module tb_variable_sustain;
     tick(1);elapsed=elapsed+1;
     for(i=0;i<16;i=i+1)begin
      if(level[i]>previous[i])$fatal(1,"Tail rose: timbre %d level %d",t,i+1);
-     if(previous[i]-level[i]>64)$fatal(1,"Hard cut");
+     // Existing four retain their 64/65535 bound; the fast organ/pluck
+     // releases remain bounded to 256/65535 rather than cutting to zero.
+     if(previous[i]-level[i]>(t<4 ? 64 : 256))$fatal(1,"Hard cut");
      if(level[i]==0 && tails[i]==0)tails[i]=elapsed;
      previous[i]=level[i];
     end

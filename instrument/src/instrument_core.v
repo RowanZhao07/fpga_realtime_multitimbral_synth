@@ -13,7 +13,7 @@ module instrument_core #(
     parameter EC11_REVERSE=1'b0,
     parameter integer EC11_BUTTON_CLOCKS=500000,
     parameter DEFAULT_SUSTAIN=1'b0,
-    parameter [1:0] DEFAULT_TIMBRE=2'd0,
+    parameter [2:0] DEFAULT_TIMBRE=3'd0,
     parameter integer UART_CLOCKS_PER_BIT=5208,
     parameter integer LAMP_TEST_CLOCKS=250000000
 )(
@@ -34,7 +34,8 @@ module instrument_core #(
     input wire [11:0] pressure_mv,
     input wire control_rx,output wire control_tx,
     output wire [44:0] control_status,
-    output wire [31:0] performance_info,
+    output wire [32:0] performance_info,
+    output wire [17:0] metronome_info,
     output wire [83:0] uart_diagnostics,
     output reg diagnostics_visible=0,
     output wire dac_bck, dac_lrck, dac_din,
@@ -56,7 +57,7 @@ module instrument_core #(
     wire engine_overrun;
     wire sample_ce, vibrato, spectrum_mode, valid, clipped,limited;
     wire [12:0] gates,active;
-    wire [1:0] timbre;
+    wire [2:0] timbre;
     wire [1:0] selected_octave;
     // The eight-sine calibration always uses its original C4..C5 tuning.
     assign octave_select=spectrum_mode ? 2'd1 : (guide_enabled && online) ? guide_octave : selected_octave;
@@ -94,7 +95,8 @@ module instrument_core #(
         endcase
     end
     assign control_status={rejected,accepted,custom_score,(guide_length>127 ? 7'd127 : guide_length[6:0]),bpm,guide_mask};
-    assign performance_info={voice_count,guide_length,guide_position,guide_rest,guide_playing,guide_finished,
+    // Append the timbre bank above the existing status layout; lower fields stay compatible.
+    assign performance_info={timbre[2],voice_count,guide_length,guide_position,guide_rest,guide_playing,guide_finished,
         (ENABLE_EXPRESSION ? effect_mode : 2'b0),y_armed,y_enabled};
     // A bounded, silent hardware diagnostic independent of touch detection.
     // Preserve L0..255 white-key masks and L256 cancel. J0..8191 addresses
@@ -125,7 +127,25 @@ module instrument_core #(
     wire [22:0] pressure_product=volume*pressure_gain;
     wire [12:0] expressive_volume=(ENABLE_JOYSTICK || pressure_online) ? pressure_product[21:9] : volume;
     wire signed [18:0] mixed;
-    wire signed [15:0] sample;
+    wire signed [15:0] sample,tone_sample,click_sample;
+    wire metro_enabled,metro_gesture,metro_flash;
+    wire [7:0] metro_bpm;
+    wire [2:0] metro_meter,metro_beat;
+    wire [1:0] metro_accent;
+    generate if(ENABLE_EXPRESSION) begin: metronome
+        metronome_control controls(.clk(clk),.rst(rst),.sample_ce(sample_ce),.online(online),
+            .touched(touched),.enabled(metro_enabled),.bpm(metro_bpm),.meter(metro_meter),.gesture(metro_gesture));
+        metronome_audio click(.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),
+            .enabled(metro_enabled && !spectrum_mode),.bpm(metro_bpm),.meter(metro_meter),.volume(volume),
+            .sample(click_sample),.beat_index(metro_beat),.flash(metro_flash),.accent(metro_accent),.tick());
+    end else begin: no_metronome
+        assign metro_enabled=0;assign metro_bpm=120;assign metro_meter=3;assign metro_gesture=0;
+        assign click_sample=0;assign metro_beat=0;assign metro_flash=0;assign metro_accent=0;
+    end endgenerate
+    assign metronome_info={metro_bpm,metro_meter,metro_beat,metro_enabled,metro_flash,metro_accent};
+    wire signed [16:0] final_mix=$signed({tone_sample[15],tone_sample})+$signed({click_sample[15],click_sample});
+    wire click_clipped=final_mix>32767 || final_mix< -32768;
+    assign sample=final_mix>32767 ? 16'sh7fff : final_mix< -32768 ? 16'sh8000 : final_mix[15:0];
     reg previous_mode=0;
     always @(posedge clk) previous_mode<=spectrum_mode;
     wire audio_reset=rst || (previous_mode!=spectrum_mode);
@@ -175,7 +195,7 @@ module instrument_core #(
         .volume(volume),.octave_select(selected_octave),.vibrato(vibrato),.spectrum_mode(spectrum_mode),
         .echo_enabled(echo_enabled),.guide_enabled(guide_enabled),.effect_mode(effect_mode),.y_enabled(y_enabled));
     polyphonic_engine #(.ENABLE_PITCH_BEND(ENABLE_EXPRESSION),.VARIABLE_SUSTAIN(ENABLE_EC11)) engine(.pitch_bend(spectrum_mode ? 16'sd0 : pitch_bend),.sustain_strength(encoder_strength),.sustain_down(sustain_active),.clk(clk),.rst(audio_reset),.sample_ce(sample_ce),.gates(gates),
-        .timbre(spectrum_mode ? 2'b0 : timbre),.octave_select(octave_select),.vibrato(vibrato),
+        .timbre(spectrum_mode ? 3'b0 : timbre),.octave_select(octave_select),.vibrato(vibrato),
         .mixed(mixed),.valid(valid),.active(active),.voice_levels(voice_levels),.voice_count(voice_count),.overrun(engine_overrun));
     wire effects_valid;
     wire signed [18:0] effects_mix;
@@ -187,7 +207,7 @@ module instrument_core #(
     end endgenerate
     audio_output output_stage(.clk(clk),.rst(audio_reset),.valid(effects_valid),.mixed(effects_mix),
         .volume(spectrum_mode ? 13'd2048 : expressive_volume),.calibration(spectrum_mode),.echo_enable((ENABLE_ECHO || echo_enabled) && !spectrum_mode),
-        .sample(sample),.clipped(clipped),.limited(limited));
+        .sample(tone_sample),.clipped(clipped),.limited(limited));
     i2s_transmitter transmitter(.clk(clk),.rst(rst),.sample(sample),
         .sample_ce(sample_ce),.bck(dac_bck),.lrck(dac_lrck),.din(dac_din));
     practice_guide guide(.clk(clk),.rst(rst),.sample_ce(sample_ce),.bpm(bpm),
@@ -201,16 +221,16 @@ module instrument_core #(
     wire tempo_pulse;
     tempo_clock tempo(.clk(clk),.rst(rst),.bpm(bpm),.flash(tempo_pulse),.beat());
     assign status={touched[17],chip_online,active[12:8],gates[12:8],
-        lamp_test,tempo_pulse,(clipped || limited),guide_position[5:0],guide_target,guide_enabled,spectrum_mode,
-        echo_enabled,vibrato,online,volume[12:8],timbre,active[7:0],gates[7:0]};
+        lamp_test,tempo_pulse,(clipped || limited || click_clipped),guide_position[5:0],guide_target,guide_enabled,spectrum_mode,
+        echo_enabled,vibrato,online,volume[12:8],timbre[1:0],active[7:0],gates[7:0]};
     always @(posedge clk) begin
         if(rst) heartbeat_count<=0;
         else if(heartbeat_count==26'd49999999) heartbeat_count<=0;
         else heartbeat_count<=heartbeat_count+1'b1;
     end
     wire beat=(heartbeat_count<26'd25000000);
-    // Held notes take priority. Idle L5..L8 identify the next-note preset.
-    wire [7:0] preset_light=8'h10 << timbre;
+    // Idle L5..L8 identify the preset within its bank; L3 marks presets T4..T7.
+    wire [7:0] preset_light=(8'h10 << timbre[1:0]) | (timbre[2] ? 8'h04 : 8'h00);
     wire [7:0] lights= !online ? (beat ? 8'h81 : 8'h00) :
         spectrum_mode ? (beat ? 8'hFF : 8'h00) :
         (|gates) ? gates[7:0] : guide_enabled ? guide_mask[7:0] : (preset_light | 8'h02 | {7'd0,beat});
@@ -220,5 +240,5 @@ module instrument_core #(
     wire [12:0] guide_lights=guide_enabled && !spectrum_mode ?
         guide_mask : 13'b0;
     assign key_lights=lamp_test ? lamp_test_mask :
-        !online ? 13'b0 : touched[17] ? 13'h1FFF : pcb_lamps(gates | guide_lights);
+        !online ? 13'b0 : (touched[17] && (!ENABLE_EXPRESSION || (touched[11:8]==0 && !metro_gesture))) ? 13'h1FFF : pcb_lamps(gates | guide_lights);
 endmodule
