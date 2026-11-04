@@ -28,11 +28,14 @@ __pycache__/
 /backups/
 /tmp/
 /.local/
-/videos/*
-!/videos/render.py
-!/videos/project.json
-!/videos/README.md
-!/videos/节拍器台词.txt
+# Video production is a separate local project, including scripts and timelines.
+/videos/
+*.mp4
+*.mov
+*.mkv
+*.avi
+*.mp3
+*.m4a
 /outputs/
 # Local stage evidence (includes rendered pages of the supplied competition PDF).
 /outputs/acceptance-20261031/
@@ -49,6 +52,7 @@ __pycache__/
 *.vsdx
 *.drawio.bkp
 *.zip
+*.rar
 # Editor / OS temporary files
 .vscode/
 .idea/

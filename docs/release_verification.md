@@ -16,7 +16,7 @@
 | FFT | 4096 点 Hann；频点间隔 11.920928955 Hz；采集窗 83.88608 ms |
 | 节拍器 | 5 拍号、40～240 BPM；固定 BPM 相位累计偏差小于 1 样本 |
 
-32 声部数值来自独立状态与负载回归；音色内部的泛音不重复计作声部。数字核心响应从控制状态入口计时至完整 I²S 样本。现场双通道照片单列于[响应测量](latency_measurement.md)。
+32 声部由独立状态和活动声部负载回归验证：[`tb_voice_allocator.sv`](../instrument/sim/tb_voice_allocator.sv)检查满载、尾音及抢占，[`tb_eight_timbres.sv`](../instrument/sim/tb_eight_timbres.sv)检查混合音色、32 个活动声部与输出有效性。现有频谱校准模式使用 8 路独立正弦音。数字核心响应从控制状态入口计时至完整 I²S 样本，8 相位原始数值见[CSV](evidence/latency_expression.csv)。现场 **472 μs、1.75 ms** 两项电气事件读数及示波器原图见[响应测量](latency_measurement.md)。
 
 ## 最终布局布线
 

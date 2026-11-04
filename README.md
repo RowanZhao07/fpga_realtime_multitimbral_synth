@@ -1,16 +1,18 @@
 # 弦外之芯——实时复音合成器
 
+**U tEll the DJ to plAY this soNG!**
+
 ![弦外之芯，一拍即核团队](assets/showcase/xianwai-zhixin-landscape-v1.png)
 
 **一拍即核团队 | 2026 FPGA 创新设计竞赛 | 高云赛道赛题二**
 
-以 Tang Mega 60K NEO 为核心的电子乐器。FPGA 独立完成逐样本发声、复音混合、数字效果和视听反馈；触摸琴键选择音符，压力片、摇杆和旋钮控制演奏表情。声音由数学波表与包络实时生成，无需处理器或预录 PCM。
+**以确定性实时音频计算为核心的纯 FPGA 电子乐器。** 基于 Tang Mega 60K NEO，32 组独立声部状态通过共享运算核逐样本生成声音，接入八种音色、硬件效果器、演奏表情与练习指引。完整发声通路由 HDL 实现，经 I²S 送入 DAC；波形、频谱与琴键灯同步反馈演奏状态。
 
 ## 设计特点
 
-- **32 声部确定性调度。** 每声部保存独立相位、频率、音色与包络，复用运算资源；重按与跨音区演奏保留旧尾音，满载抢占采用短淡出。
-- **声音与分析并行。** 音频按固定采样节拍运行，4096 点 FFT 独立处理；波形、频谱、延迟李萨如与琴键灯共同反馈演奏状态。
-- **从演奏到练习。** 八种合成音色、延迟／混响／合唱、压力与延音控制，结合脱机曲谱指引、蓝牙参数控制和电子节拍器。
+- **32 声部 & 固定采样预算。** 独立相位、频率、音色与 ADSR 状态；负载回归最重帧 829 / 1024 时钟，保留 195 时钟调度余量。重触发保留旧尾音，抢占附加 8 样本淡出。
+- **逐样本合成 & 硬件效果。** 数学波表、线性插值、包络与混音全部在 FPGA 内完成；混响采用 4 路阻尼反馈梳状滤波与 2 级全通，合唱采用分数延迟插值。
+- **演奏 & 分析 & 练习。** 触摸、压力、摇杆与旋钮连接演奏动作；4096 点 FFT 独立于合成运行，配合脱机曲谱、蓝牙参数控制和五拍号节拍器。
 
 ## 核心参数
 
@@ -20,13 +22,27 @@
 | 调度容量 | 1,562,500 声部采样 / 秒；采样帧剩余 195 时钟，约 19.04% |
 | 音键与音色 | 13 键、4 档音区、49 个不同音高；8 种数学波表音色 |
 | 数字音频 | 16 bit I²S；标称采样率 48,828.125 Hz |
-| 核心数字响应 | 47.93～65.87 μs，T0、8 个触发相位，数字状态入口至完整非零 I²S 样本 |
-| 视听反馈 | 800 × 600 HDMI、512 点波形、4096 点 Hann FFT、13 路键灯 |
+| 核心数字响应 | **47.93～65.87 μs**；T0、节拍器关闭、8 个触发相位；控制状态入口 → 完整非零 I²S 样本 |
+| 示波器事件读数 | **472 μs**：IRQ 下降沿 → LOUT 首次明显突变附近；**1.75 ms**：IRQ 下降沿 → LOUT 后续变化 |
+| 表情采样周期 | **9.97572 ms / 通道**（约 100.24 Hz）；三通道 ADS1115、100 kHz I²C、2 ms 转换等待模型 |
+| 视听反馈 | 800 × 600 HDMI、512 点波形、4096 点 Hann FFT、13 路键灯；FFT 频点间隔 **11.9209 Hz** |
 | 节拍器 | 2/2、2/4、3/4、4/4、6/8；40～240 BPM，强弱拍与屏幕拍点同步 |
 | 脱机指引 | 内置 76 音《遇见》片段，按对推进；UART 曲谱容量 512 步 |
-| FPGA 资源 | Logic 36,017 / 59,904；BSRAM 99 / 118；DSP 39 / 118 |
+| FPGA 资源 | Logic **60.12%**；Register **14.41%**；BSRAM **83.90%**；DSP **33.05%** |
+| 布局布线时序 | Setup / Hold 违规端点均为 **0**；最小余量分别为 **0.001 ns / 0.183 ns** |
 
-调度容量与数字响应来自 RTL 回归，资源来自最终 M2 布局布线报告。数字响应计量区间不包含 MPR121 感知与 DAC 模拟输出。测试条件、版本与文件校验值见[发布验证](docs/release_verification.md)。
+32 声部容量及调度结果由 RTL 负载回归验证，现有频谱校准模式使用 8 路独立正弦音。资源与时序对应 **EXPR M2 8T** 最终布局布线；19.04% 为采样帧预算余量。详见[发布验证](docs/release_verification.md)。
+
+## 时延测量
+
+Tektronix TBS1102C 同步采集 **CH1：MPR121 IRQ** 与 **CH2：PCM5102 LOUT**，两通道均为 1 V/div、公共地参考。
+
+| IRQ → LOUT 首次明显突变附近 | IRQ → LOUT 后续变化 |
+|---|---|
+| ![IRQ 与 LOUT，游标间隔 472 微秒](assets/measurements/time_delay_2.jpg) | ![IRQ 与 LOUT，游标间隔 1.75 毫秒](assets/measurements/time_delay.jpg) |
+| **Δt = 472 μs**；100 μs/div，12.5 MS/s | **Δt = 1.75 ms**；200 μs/div，6.25 MS/s |
+
+两图分别报告游标所选电气事件间隔；数字核心的 47.93～65.87 μs 则从 FPGA 控制状态入口计时至完整 I²S 样本。三者的端点与条件分别列示，便于复核。[原图判读与测量步骤](docs/latency_measurement.md)
 
 ## 演奏与练习
 
@@ -34,7 +50,7 @@
 
 节拍器上电默认关闭、120 BPM、4/4。按住 LED_TEST/X0，配合 VIB 开关、TONE 切换拍号、VOL± 持续调速。6/8 按附点四分音符计 BPM，并发出六个八分音符细分拍点。
 
-[完整操作](docs/usage.md) · [八种音色](docs/eight_timbres.md) · [节拍器](docs/metronome.md) · [表情与音效](docs/expression_controls.md)
+[完整操作](docs/usage.md) & [八种音色](docs/eight_timbres.md) & [节拍器](docs/metronome.md) & [表情与音效](docs/expression_controls.md)
 
 ## 界面预览
 
@@ -55,10 +71,6 @@
   </tr>
 </table>
 
-## 现场测量记录
-
-Tektronix TBS1102C 双通道记录 MPR121 IRQ 与 PCM5102 LOUT。两张照片分别保留 **472 μs** 与 **1.75 ms** 的游标间隔；前者标记 IRQ 下降沿至模拟输出突变附近，后者右侧光标位于更晚的一次输出变化。记录量为具体波形事件间隔，未把它们作为整机起音延迟或 p95 统计。接线、原图与判读见[测量记录](docs/latency_measurement.md)。
-
 ## 构建与使用
 
 活动工程：[`instrument/instrument_expression.gprj`](instrument/instrument_expression.gprj)，器件 `GW5AT-LV60PG484AC1/I0`，顶层 `instrument_top`。
@@ -74,9 +86,9 @@ Tektronix TBS1102C 双通道记录 MPR121 IRQ 与 PCM5102 LOUT。两张照片分
 python instrument/tools/serial_control.py --score assets/scores/yujian.txt --bpm 93 --emit
 ```
 
-构建生成 `dist/instrument_expression_metronome_v2_louder.fs` 和同名 manifest。下载选择 **GW5AT-60B → SRAM Program**，屏幕版本为 **EXPR M2 8T**。构建脚本核对输入哈希、位流时间以及时序报告。
+构建生成 `dist/instrument_expression_metronome_v2_louder.fs` 和同名 manifest。下载选择 **GW5AT-60B → SRAM Program**，屏幕版本为 **EXPR M2 8T**。
 
-[工程打开说明](instrument/OPEN_IN_GOWIN.md) · [接线清单](docs/wiring_current.md)
+[工程打开说明](instrument/OPEN_IN_GOWIN.md) & [接线清单](docs/wiring_current.md)
 
 ## 仓库内容
 
@@ -87,6 +99,5 @@ python instrument/tools/serial_control.py --score assets/scores/yujian.txt --bpm
 | `instrument/tools` | 曲谱、ROM 生成、音频分析与发布核查 |
 | `assets` | 波表、曲谱、壁纸、界面及测量照片 |
 | `docs` | 当前操作、接线、实现及验证说明 |
-| `videos` | 可复现剪辑脚本、时间表与节拍器台词 |
 
-原始视频、配音、位流和构建缓存单独保存，不进入 Git。[视频工程](videos/README.md) · [团队贡献与素材来源](docs/collaboration_update.md)
+视频素材、成片与剪辑工程在本地独立保存，均不进入源码仓库。琴体外壳与支架经多轮拓竹 3D 打印完成，底板 PCB 与定制触摸键盘由嘉立创提供，壁纸取材于 Phigros。
