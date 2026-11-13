@@ -1,6 +1,6 @@
 # 表情控制与数字效果
 
-当前版本 EXPR M2 8T。音频由 FPGA 内的定点数据通路逐样本生成；表情参数在采样边界进入控制，显示与音频共享同一输出 PCM。
+当前版本 EXPR M3 8T。音频由 FPGA 内的定点数据通路逐样本生成；表情参数在采样边界进入控制，显示与音频共享同一输出 PCM。
 
 ## 演奏输入
 
@@ -40,4 +40,4 @@ Y 弯音启用后收集八次有效中位采样，学习 1.3～1.9 V 内的中�
 | `V0`～`V4096` | 主音量 |
 | `H0/H1` | 延音开关 |
 
-算法采用直接数字合成、ADSR 和标准延迟网络；实现重点是定点位宽、RAM 调度、参数过渡与统一帧边界。源代码见 `polyphonic_engine.v`、`envelope_adsr.v`、`expression_effects.v` 与 `instrument_core.v`。验证与版本见[发布验证](release_verification.md)。
+算法采用直接数字合成、ADSR 和标准延迟网络；实现重点是定点位宽、RAM 调度、参数过渡与统一帧边界。源代码见 `polyphonic_engine.v`、`envelope_adsr.v`、`expression_effects.v` 与 `instrument_core.v`。验证与版本见[M3 优化验证](scheduler_optimization.md)。

@@ -1,0 +1,288 @@
+{
+  "version": "EXPR M3 8T",
+  "release_tag": "expr-m3-20261113",
+  "bitstream_sha256": "5df395f013da8425acf4d415a3c544d82c917cd5a42a715334e4b986efd30fad",
+  "normalization": "Replace CRLF with LF; all other bytes remain unchanged.",
+  "inputs": [
+    {
+      "path": "instrument/build.ps1",
+      "build_bytes_sha256": "3ef4db4a704ddb45b170e4447d177236bd5b0978b62c02db987c983dae4897ea",
+      "normalized_lf_sha256": "6089af1a42a0a3df5257bcbce56df3afb08d8e45aa384451242ced3980befa74"
+    },
+    {
+      "path": "instrument/build.tcl",
+      "build_bytes_sha256": "594ecdf55b35dba635f6abbec765c82d8fdeafe98e9bfffc876d6bfa9a2c4a3a",
+      "normalized_lf_sha256": "2ee4f907e315ac2b518ba65016348e65f70677bc1cbc719bb84eba2be23281b4"
+    },
+    {
+      "path": "instrument/config/expression_process_config.json",
+      "build_bytes_sha256": "88238d81c07a91516b0f8ab0e228f5e7a07bcd3c430a29574033bf7914ea5e3e",
+      "normalized_lf_sha256": "18ee4a13c3103cff4fbc1313ce236e8b864b2963aedb00d39a9d6693518713d0"
+    },
+    {
+      "path": "instrument/config/expression_top.vh",
+      "build_bytes_sha256": "d710c0a350309eabf2eea8e9fcf14df1e86c12b4dd5b18520165eb9f9e0e92d6",
+      "normalized_lf_sha256": "b011a352aac6a2da0b40aea735ab252b010c079cf112a9f025392d919b1a9a21"
+    },
+    {
+      "path": "instrument/instrument_expression.gprj",
+      "build_bytes_sha256": "d374a6443067cd686db9ae03a7387958e40f0bbd3f027686d47f912fcd60ebe4",
+      "normalized_lf_sha256": "88e281ad5f06b919f8ef6c3fa4edf9d4df44447733b1abb97f84e5f23cd7d3d7"
+    },
+    {
+      "path": "instrument/src/ads1115_controller.v",
+      "build_bytes_sha256": "f0784dc1ff27aca74ddf528df3aee3561297edcaa288ca274ad825faf4cc0e06",
+      "normalized_lf_sha256": "f0784dc1ff27aca74ddf528df3aee3561297edcaa288ca274ad825faf4cc0e06"
+    },
+    {
+      "path": "instrument/src/ads1115_scanner.v",
+      "build_bytes_sha256": "a880151c5f637b32ff3e4863e6625e4a951845bb13329472b7e0a3ca5e76a539",
+      "normalized_lf_sha256": "a880151c5f637b32ff3e4863e6625e4a951845bb13329472b7e0a3ca5e76a539"
+    },
+    {
+      "path": "instrument/src/audio_output.v",
+      "build_bytes_sha256": "349f8b609f257b2cfce0078b3b64a3d3b19fef8e582615f94f5de2887f358b06",
+      "normalized_lf_sha256": "349f8b609f257b2cfce0078b3b64a3d3b19fef8e582615f94f5de2887f358b06"
+    },
+    {
+      "path": "instrument/src/audio_spectrum.v",
+      "build_bytes_sha256": "e73192107e2ca499848faa59c487617f2d2300df88bb384c47f5adfbc55357c9",
+      "normalized_lf_sha256": "e73192107e2ca499848faa59c487617f2d2300df88bb384c47f5adfbc55357c9"
+    },
+    {
+      "path": "instrument/src/board_clock.v",
+      "build_bytes_sha256": "bd760bbdefcfd4f69c0dfda65a112054e76ff6add2a756ca83bfb3f5a7efdfd6",
+      "normalized_lf_sha256": "bd760bbdefcfd4f69c0dfda65a112054e76ff6add2a756ca83bfb3f5a7efdfd6"
+    },
+    {
+      "path": "instrument/src/display_gain.v",
+      "build_bytes_sha256": "5307c6e9b826dd77821575f6b8645a0a7c362246ff1160dde11b1742cce76459",
+      "normalized_lf_sha256": "5307c6e9b826dd77821575f6b8645a0a7c362246ff1160dde11b1742cce76459"
+    },
+    {
+      "path": "instrument/src/ec11_sustain.v",
+      "build_bytes_sha256": "d63e3e6cfac456fae528018973813c0cfc03928ef96175a25f93bc2985a93627",
+      "normalized_lf_sha256": "d63e3e6cfac456fae528018973813c0cfc03928ef96175a25f93bc2985a93627"
+    },
+    {
+      "path": "instrument/src/envelope_adsr.v",
+      "build_bytes_sha256": "43340f0f39517d9d55eb08de5b69b6761d1f45d97817c914a6535acb5d1b4612",
+      "normalized_lf_sha256": "43340f0f39517d9d55eb08de5b69b6761d1f45d97817c914a6535acb5d1b4612"
+    },
+    {
+      "path": "instrument/src/expression_effects.v",
+      "build_bytes_sha256": "5d1a1f4de688f81c5cbcbace57a4afb4ef4659b4298d6d77f47a06e37ffab7d5",
+      "normalized_lf_sha256": "5d1a1f4de688f81c5cbcbace57a4afb4ef4659b4298d6d77f47a06e37ffab7d5"
+    },
+    {
+      "path": "instrument/src/fft_cos_lut.v",
+      "build_bytes_sha256": "946ed1841bcea65cb91deeba3432975d5529bac1fd3e017229680d1c15605527",
+      "normalized_lf_sha256": "eba9b1302aa06fa08ea2c71fd079b698b309e2e4eed12898fa42ec360b7c8814"
+    },
+    {
+      "path": "instrument/src/fft_sin_lut.v",
+      "build_bytes_sha256": "876bbc574e15ba419f5ffcbef2bab8e7106b2a295e10ca8b8ede0cd9d8e01461",
+      "normalized_lf_sha256": "7602807d714a1652f642c37094476dec493ac80f6e0c4332a9133b171dd4818d"
+    },
+    {
+      "path": "instrument/src/fft_window_lut.v",
+      "build_bytes_sha256": "b8c6052126719e3907dab1aa16871a65d9d26bffcb6b6a7254d3b26995908154",
+      "normalized_lf_sha256": "92327195edb30ddd09a55dca112e12f7499af975466fa80c5d96baf59b6091b8"
+    },
+    {
+      "path": "instrument/src/font_lut.v",
+      "build_bytes_sha256": "f0e2ac7d958c61f28ede62b74cd350cbb92d509163e7c19c3a96d0e3033ecd2a",
+      "normalized_lf_sha256": "64627409c4c0158ab29aa776fe719f9fc2891251f88f1d1de89b6af6348eba24"
+    },
+    {
+      "path": "instrument/src/guide_score_rom.v",
+      "build_bytes_sha256": "a41edc18df7025dfd6872df99613783152ab4d7979a646807e7c0ec4d413132c",
+      "normalized_lf_sha256": "c53b1907aa579422afa797513fccca0955630ae2f8df8694d0ebd6b37d8d9860"
+    },
+    {
+      "path": "instrument/src/hc595_driver.v",
+      "build_bytes_sha256": "e388d110280b09e9b68ebeada95d5ac16244a57f0515d319da7188fb7204303d",
+      "normalized_lf_sha256": "e388d110280b09e9b68ebeada95d5ac16244a57f0515d319da7188fb7204303d"
+    },
+    {
+      "path": "instrument/src/i2c_register_master.v",
+      "build_bytes_sha256": "b8bd8fd0b05ad7a29cb95ceacc2de4c26bac24571e2411140fe7765d451a1d8b",
+      "normalized_lf_sha256": "b8bd8fd0b05ad7a29cb95ceacc2de4c26bac24571e2411140fe7765d451a1d8b"
+    },
+    {
+      "path": "instrument/src/i2s_transmitter.v",
+      "build_bytes_sha256": "df65e0f1e33bc3119cc0f5a0ef220f58381d20d4478f0ab1057c6bca1c04774d",
+      "normalized_lf_sha256": "df65e0f1e33bc3119cc0f5a0ef220f58381d20d4478f0ab1057c6bca1c04774d"
+    },
+    {
+      "path": "instrument/src/instrument_core.v",
+      "build_bytes_sha256": "28b578233e9218f6bc9a25e545aae01fb13c030c8af1708296b0a07fe0d1645e",
+      "normalized_lf_sha256": "14272e8c931055641531b6e9b9820e54932c1127881c10fa98c6c8d46f7c27c3"
+    },
+    {
+      "path": "instrument/src/instrument_screen.v",
+      "build_bytes_sha256": "cb461ad06a50eeffd404b61e7a58489a3f7c0f2df615293a79c236b644d9305f",
+      "normalized_lf_sha256": "d7e2d0be86211a0b8c73ad3c4887e5003ec55edb71de90e8ee64755f088b6c8b"
+    },
+    {
+      "path": "instrument/src/instrument_top.v",
+      "build_bytes_sha256": "ebcb1a4ef597aad8ebfa8655e7f561e7ccdb7ae20c1d9a673c6cd2ca70821efe",
+      "normalized_lf_sha256": "a72ecc937495ad2fb4e60f62a219bd94a1467674e06b035a9952051f09e938fe"
+    },
+    {
+      "path": "instrument/src/instrument.cst",
+      "build_bytes_sha256": "3388905ac379ae99a305b22ac77dbabc33c499bec8a07ff5bad4cd3c61a100ca",
+      "normalized_lf_sha256": "3388905ac379ae99a305b22ac77dbabc33c499bec8a07ff5bad4cd3c61a100ca"
+    },
+    {
+      "path": "instrument/src/instrument.sdc",
+      "build_bytes_sha256": "72484cf03067b208167eacdad63bdea0830be028bed8047f82c717bf0e579d42",
+      "normalized_lf_sha256": "72484cf03067b208167eacdad63bdea0830be028bed8047f82c717bf0e579d42"
+    },
+    {
+      "path": "instrument/src/joystick_control.v",
+      "build_bytes_sha256": "cc9ebdc5ec08e82e84eefd5ac20eb38347fbe3d60a3edfd4c0fa21f3319eccf6",
+      "normalized_lf_sha256": "cc9ebdc5ec08e82e84eefd5ac20eb38347fbe3d60a3edfd4c0fa21f3319eccf6"
+    },
+    {
+      "path": "instrument/src/lissajous_capture.v",
+      "build_bytes_sha256": "0450e2c3f4d5acca52447cd156a241cb8f39f54459e1e1238ffd0a9b22397673",
+      "normalized_lf_sha256": "0450e2c3f4d5acca52447cd156a241cb8f39f54459e1e1238ffd0a9b22397673"
+    },
+    {
+      "path": "instrument/src/metronome_audio.v",
+      "build_bytes_sha256": "b1d5c0f19b2d2740942b801436e8772e736f51be3d43cd1be8a73c7fb407569d",
+      "normalized_lf_sha256": "18d6b76414cd9c46ce885c9d263a348d5962b2d496a11cc3e78b2d128653fa31"
+    },
+    {
+      "path": "instrument/src/metronome_control.v",
+      "build_bytes_sha256": "484eda91aaa3e5e94c20f3c6490250a32571b63121248d3473e2be294c4f125b",
+      "normalized_lf_sha256": "484eda91aaa3e5e94c20f3c6490250a32571b63121248d3473e2be294c4f125b"
+    },
+    {
+      "path": "instrument/src/mpr121_controller.v",
+      "build_bytes_sha256": "29e7dbd82ff15ded136f4f2c1c45c1475af8f06c2b72c7a164cd3f0b553eb6a2",
+      "normalized_lf_sha256": "ea51873c5052d6ada06f5d8b5a69031694ddaa9d6f19aa15c3f4812013452aa6"
+    },
+    {
+      "path": "instrument/src/note_frequency.v",
+      "build_bytes_sha256": "99f4e269d60ad8275e460a0412b646b85c17a0de90eff658d34a265abc864300",
+      "normalized_lf_sha256": "786fa4323f23cb2402a1fa18a622b7279e39f5471c765cd4255e0cba88b26906"
+    },
+    {
+      "path": "instrument/src/performance_control.v",
+      "build_bytes_sha256": "036256b8a8ac6d16cd847c425da45cd43159d8dc28561a4fa29e6c0c70c4befe",
+      "normalized_lf_sha256": "1bad661e6820bdc58fc5a294e34e8bf1ce20b3f28a8df57791f8abb40669b6f5"
+    },
+    {
+      "path": "instrument/src/pitch_expression.v",
+      "build_bytes_sha256": "1895533dd8001e92aa7a5c70bca4ee536dad6eab89eadb04aba71ad4f79d8446",
+      "normalized_lf_sha256": "1895533dd8001e92aa7a5c70bca4ee536dad6eab89eadb04aba71ad4f79d8446"
+    },
+    {
+      "path": "instrument/src/polyphonic_engine.v",
+      "build_bytes_sha256": "11c70fdc5fc5e3ac64ab4c6ed7fb35d66db41bacd2b100d6d716903c2776a859",
+      "normalized_lf_sha256": "11c70fdc5fc5e3ac64ab4c6ed7fb35d66db41bacd2b100d6d716903c2776a859"
+    },
+    {
+      "path": "instrument/src/practice_guide.v",
+      "build_bytes_sha256": "9be4054cc4068c5e04277335add2eb602f5d2f52a0ac8bf148c6a6bfa956b186",
+      "normalized_lf_sha256": "ab3c1540f4023eef2d46a66a61fe6a129acb1ff97caa13d8ea7b9778997f0f2d"
+    },
+    {
+      "path": "instrument/src/pressure_expression.v",
+      "build_bytes_sha256": "ce8341fac088652ee0aa40072750e794852be10c8280f92e1da47a0662403b01",
+      "normalized_lf_sha256": "ce8341fac088652ee0aa40072750e794852be10c8280f92e1da47a0662403b01"
+    },
+    {
+      "path": "instrument/src/pressure_mapping.v",
+      "build_bytes_sha256": "9e4724bdef75b599b05c205053fc47b26a09d0ff04f2ccf2b3c3c7cfb0cb1e8c",
+      "normalized_lf_sha256": "9e4724bdef75b599b05c205053fc47b26a09d0ff04f2ccf2b3c3c7cfb0cb1e8c"
+    },
+    {
+      "path": "instrument/src/sine_lut.v",
+      "build_bytes_sha256": "c7819db19ccfb909868a12f524b90a19d2b9ee825836fb1fbc71d77ed2ddaa70",
+      "normalized_lf_sha256": "346a45eb7277dc53ebfd7875781f202f4603532b1a58e386d886b49b83aa7fec"
+    },
+    {
+      "path": "instrument/src/spectrum_pair_peak.v",
+      "build_bytes_sha256": "7786cea0c9097626373071f2facd46e8b0a705515a4d96bec5bfaa6c4829a48e",
+      "normalized_lf_sha256": "7786cea0c9097626373071f2facd46e8b0a705515a4d96bec5bfaa6c4829a48e"
+    },
+    {
+      "path": "instrument/src/status_mailbox.v",
+      "build_bytes_sha256": "469dc23abafb97dcd152e6d48ae1aa53038dd64aeea0d4aeacc2895addfe7cd5",
+      "normalized_lf_sha256": "469dc23abafb97dcd152e6d48ae1aa53038dd64aeea0d4aeacc2895addfe7cd5"
+    },
+    {
+      "path": "instrument/src/synthesis_voice.v",
+      "build_bytes_sha256": "4e3e2d746665276b8e471f866997dd72731b3c8318f32c628d8c758c6585d165",
+      "normalized_lf_sha256": "4e3e2d746665276b8e471f866997dd72731b3c8318f32c628d8c758c6585d165"
+    },
+    {
+      "path": "instrument/src/tempo_clock.v",
+      "build_bytes_sha256": "fd92b5b89f97a386264705b308dc3c7b63e0212e1eb1799542f2c22b6295e704",
+      "normalized_lf_sha256": "fd92b5b89f97a386264705b308dc3c7b63e0212e1eb1799542f2c22b6295e704"
+    },
+    {
+      "path": "instrument/src/timbre_lut.v",
+      "build_bytes_sha256": "fff1f6c3168b58be168963ae36db35e050f6ec5dc4ad0d5121a682f554e79b57",
+      "normalized_lf_sha256": "5d2e6d9fe36172075e5e1303e991b83f732f55f3659f4a84bdb090ca8b57f18d"
+    },
+    {
+      "path": "instrument/src/tmds_encoder.v",
+      "build_bytes_sha256": "2a58198b1610408e9dad7337396e141594be2b448cc702bc9480fa6989f55290",
+      "normalized_lf_sha256": "2a58198b1610408e9dad7337396e141594be2b448cc702bc9480fa6989f55290"
+    },
+    {
+      "path": "instrument/src/touch_isolation_control.v",
+      "build_bytes_sha256": "5023c700adb929cd6aeeeb2d3972cf4d4915951afbd5f5f5ea15b38823a43077",
+      "normalized_lf_sha256": "5023c700adb929cd6aeeeb2d3972cf4d4915951afbd5f5f5ea15b38823a43077"
+    },
+    {
+      "path": "instrument/src/uart_8n1.v",
+      "build_bytes_sha256": "64a96094a03e65be77a21cd9a19860373e75a47ba087508d72e4198eb738f8c3",
+      "normalized_lf_sha256": "64a96094a03e65be77a21cd9a19860373e75a47ba087508d72e4198eb738f8c3"
+    },
+    {
+      "path": "instrument/src/uart_control.v",
+      "build_bytes_sha256": "019676ca80a24832daca74b7b1553e12b37835c7ebeef2b281f532c262d54c0a",
+      "normalized_lf_sha256": "4aa7f8d1dcd38246933b749c274fd7a205711f83573737e65f4138a4f213d954"
+    },
+    {
+      "path": "instrument/src/video_clock.v",
+      "build_bytes_sha256": "7a17a5828e778cb1dcaf13f0600ad151a5e9629657183a3f9a5af31739371c6e",
+      "normalized_lf_sha256": "7a17a5828e778cb1dcaf13f0600ad151a5e9629657183a3f9a5af31739371c6e"
+    },
+    {
+      "path": "instrument/src/video_output.v",
+      "build_bytes_sha256": "ba536f0c8b9f687bb62ea1757f723c7b0e391f63b68478430f01b88c340f3224",
+      "normalized_lf_sha256": "ba536f0c8b9f687bb62ea1757f723c7b0e391f63b68478430f01b88c340f3224"
+    },
+    {
+      "path": "instrument/src/video_timing.v",
+      "build_bytes_sha256": "6dfae0e29a090775ff8dda14f1ef130d54559e8be1ef6a3b59011d28e00faa06",
+      "normalized_lf_sha256": "6dfae0e29a090775ff8dda14f1ef130d54559e8be1ef6a3b59011d28e00faa06"
+    },
+    {
+      "path": "instrument/src/visual_buffer.v",
+      "build_bytes_sha256": "bbfb67e838a53dd49f3d5b15bf6a3453ce87207bd50b794fa8802271d09f4823",
+      "normalized_lf_sha256": "bbfb67e838a53dd49f3d5b15bf6a3453ce87207bd50b794fa8802271d09f4823"
+    },
+    {
+      "path": "instrument/src/wallpaper_renderer.v",
+      "build_bytes_sha256": "c042a5f8efd6900ed94cdbdd5e537679228c9335cb7edf7da8c308e6f75e3e9d",
+      "normalized_lf_sha256": "c042a5f8efd6900ed94cdbdd5e537679228c9335cb7edf7da8c308e6f75e3e9d"
+    },
+    {
+      "path": "instrument/src/wallpaper_rom.v",
+      "build_bytes_sha256": "288335cfa43d5461e31684b07ff29fd2ff4ef6c0e3d9f0288fa864e2e1dd367d",
+      "normalized_lf_sha256": "529fd61605febd6cbf88e52a21d9b8cccb294858c19974af33e75a0af133d9e3"
+    },
+    {
+      "path": "instrument/src/waveform_capture.v",
+      "build_bytes_sha256": "a019bd01677d8679f9e8029be68b64a4f83fd93ff93a5d5f601aed39bc3a4f58",
+      "normalized_lf_sha256": "a019bd01677d8679f9e8029be68b64a4f83fd93ff93a5d5f601aed39bc3a4f58"
+    }
+  ]
+}

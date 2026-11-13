@@ -4,8 +4,8 @@ $ErrorActionPreference='Stop'
 $GowinShell = Resolve-GowinShell $GowinShell
 if ($CheckTools) { Write-Output "Gowin shell: $GowinShell"; return }
 $buildBase = 'instrument_expression'
-$releaseBase = 'instrument_expression_metronome_v2_louder'
-# Never publish to the frozen instrument_expression_link_v1.fs baseline.
+$releaseBase = 'instrument_expression_m3_scheduler'
+# Keep the M2 hardware baseline available alongside the optimized candidate.
 $previousSynthesisOnly = $env:INSTRUMENT_SYNTHESIS_ONLY
 $env:INSTRUMENT_SYNTHESIS_ONLY = if($SynthesisOnly) { '1' } else { '0' }
 Push-Location $PSScriptRoot
@@ -53,11 +53,12 @@ try {
     New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
     Move-Item -LiteralPath $buildFile -Destination $releaseFile -Force
     $releaseHash=Get-FileHash -LiteralPath $releaseFile -Algorithm SHA256
-    $evidenceDir=Join-Path $repoRoot 'outputs/expression-metronome-v2-louder'
+    $evidenceDir=Join-Path $repoRoot 'outputs/expression-m3-scheduler'
     New-Item -ItemType Directory -Path $evidenceDir -Force | Out-Null
     Copy-Item -LiteralPath "impl/pnr/$buildBase.tr","impl/pnr/$buildBase.rpt.txt","impl/pnr/$buildBase.pin.html",'build.log' -Destination $evidenceDir -Force
     [pscustomobject]@{
-        profile='expression-metronome-v2-louder';baseline='instrument_expression_metronome_v1.fs';metronome=$true;metronome_gain_relative_to_m1=4;display_gain=3;timbres=8;
+        profile='expression-m3-scheduler';baseline='instrument_expression_metronome_v2_louder.fs';metronome=$true;metronome_gain_relative_to_m1=4;display_gain=3;timbres=8;
+        scheduler='paired-search-idle-skip-rom-prefetch';voices=32;sample_period_clocks=1024;
         built_at_utc=$buildStarted.ToUniversalTime().ToString('o');
         bitstream="$releaseBase.fs";sha256=$releaseHash.Hash;bytes=(Get-Item -LiteralPath $releaseFile).Length;
         tool=$GowinShell;setup_violations=0;hold_violations=0;minimum_pulse_width_passed=$true;

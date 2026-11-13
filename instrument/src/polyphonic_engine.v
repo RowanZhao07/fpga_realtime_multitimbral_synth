@@ -49,13 +49,23 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
     reg [3:0] key=0;
     reg [4:0] state=0;
     integer n;
-    reg found_free,found_release;
-    reg [4:0] free_slot,release_slot,oldest_slot,candidate=0;
-    wire [4:0] selected=found_free ? free_slot : found_release ? release_slot : oldest_slot;
-    reg [31:0] oldest_age;
-    reg [15:0] quietest;
-    // Search one candidate per clock: avoids a 32-comparator critical chain.
-    // Even 13 simultaneous onsets + all 32 audio voices finish before 1024 clocks.
+    reg [1:0] found_free=0,found_release=0;
+    reg [4:0] free_slot[0:1],release_slot[0:1],oldest_slot[0:1];
+    reg [3:0] candidate=0;
+    reg [31:0] oldest_age[0:1];
+    reg [15:0] quietest[0:1];
+    integer lane;
+    // Two independent scans examine adjacent slots per clock. Merge only the
+    // registered winners, retaining the original tie order: first free,
+    // quietest release (lowest slot on ties), oldest held (highest on ties).
+    wire release_odd=found_release[1] && (!found_release[0] ||
+        quietest[1]<quietest[0] ||
+        (quietest[1]==quietest[0] && release_slot[1]<release_slot[0]));
+    wire oldest_odd=oldest_age[1]>oldest_age[0] ||
+        (oldest_age[1]==oldest_age[0] && oldest_slot[1]>oldest_slot[0]);
+    wire [4:0] selected=(|found_free) ? (found_free[0] ? free_slot[0] : free_slot[1]) :
+        (|found_release) ? release_slot[release_odd] : oldest_slot[oldest_odd];
+    wire pair_has_free=!occupied[{candidate,1'b0}] || !occupied[{candidate,1'b1}];
     wire [31:0] selected_step=frame_octave==0 ? key_steps[key]>>1 :
         frame_octave==1 ? key_steps[key] : frame_octave==2 ? key_steps[key]<<1 : key_steps[key]<<2;
     reg [10:0] address=0;
@@ -91,8 +101,11 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
             state<=0;slot<=0;key<=0;lfo_phase<=0;mixed<=0;active<=0;
             voice_levels<=0;voice_count<=0;overrun<=0;accumulator<=0;
             next_active<=0;next_levels<=0;next_count<=0;address<=0;
-            candidate<=0;found_free<=0;found_release<=0;free_slot<=0;
-            release_slot<=0;oldest_slot<=0;oldest_age<=0;quietest<=16'hffff;
+            candidate<=0;found_free<=0;found_release<=0;
+            for(lane=0;lane<2;lane=lane+1) begin
+                free_slot[lane]<=0;release_slot[lane]<=0;oldest_slot[lane]<=lane;
+                oldest_age[lane]<=0;quietest[lane]<=16'hffff;
+            end
             for(n=0;n<32;n=n+1) begin
                 phase[n]<=0;steps[n]<=0;age[n]<=0;owner[n]<=0;preset[n]<=0;brightness[n]<=0;
                 last_sample[n]<=0;steal_tail[n]<=0;fade_left[n]<=0;
@@ -114,18 +127,31 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
             end
             1:begin
                 if(rising[key]) begin
-                    candidate<=0;found_free<=0;found_release<=0;free_slot<=0;
-                    release_slot<=0;oldest_slot<=0;oldest_age<=0;quietest<=16'hffff;state<=17;
+                    candidate<=0;found_free<=0;found_release<=0;
+                    for(lane=0;lane<2;lane=lane+1) begin
+                        free_slot[lane]<=0;release_slot[lane]<=0;oldest_slot[lane]<=lane;
+                        oldest_age[lane]<=0;quietest[lane]<=16'hffff;
+                    end
+                    state<=17;
                 end else if(key==12) state<=2;else key<=key+1'b1;
             end
             17:begin
-                if(!occupied[candidate] && !found_free) begin free_slot<=candidate;found_free<=1;end
-                if(occupied[candidate] && !held[candidate] && !sustain_down &&
-                    (!found_release || envelopes[candidate]<quietest)) begin
-                    found_release<=1;release_slot<=candidate;quietest<=envelopes[candidate];
+                for(lane=0;lane<2;lane=lane+1) begin
+                    if(!occupied[{candidate,lane[0]}]) begin
+                        free_slot[lane]<={candidate,lane[0]};found_free[lane]<=1;
+                    end
+                    if(occupied[{candidate,lane[0]}] && !held[{candidate,lane[0]}] && !sustain_down &&
+                        (!found_release[lane] || envelopes[{candidate,lane[0]}]<quietest[lane])) begin
+                        found_release[lane]<=1;release_slot[lane]<={candidate,lane[0]};
+                        quietest[lane]<=envelopes[{candidate,lane[0]}];
+                    end
+                    if(age[{candidate,lane[0]}]>=oldest_age[lane]) begin
+                        oldest_age[lane]<=age[{candidate,lane[0]}];oldest_slot[lane]<={candidate,lane[0]};
+                    end
                 end
-                if(age[candidate]>=oldest_age) begin oldest_age<=age[candidate];oldest_slot<=candidate;end
-                if(candidate==31) state<=18;else candidate<=candidate+1'b1;
+                // All lower pairs were occupied. Any free slot in this pair
+                // is therefore the first free slot in the original scan order.
+                if(pair_has_free || candidate==15) state<=18;else candidate<=candidate+1'b1;
             end
             18:begin
                     occupied[selected]<=1;held[selected]<=1;clear_voice[selected]<=1;
@@ -138,7 +164,10 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
             end
             2:begin envelope_tick<=1;state<=3;end
             3:begin slot<=0;accumulator<=0;next_active<=0;next_levels<=0;next_count<=0;state<=4;end
-            4:begin
+            4:if(!occupied[slot]) begin
+                // Unallocated slots contribute neither PCM nor state updates.
+                if(slot==31) state<=16;else slot<=slot+1'b1;
+            end else begin
                 address<={preset[slot],phase[slot][31:24]};fraction<=phase[slot][23:16];
                 deviation<=$signed({1'b0,(steps[slot]>>13)})*lfo;
                 bend_product<=$signed({1'b0,steps[slot]})*frame_bend;
@@ -146,17 +175,19 @@ module polyphonic_engine #(parameter VARIABLE_SUSTAIN=1'b0,parameter ENABLE_PITC
             end
             5:begin base<=wave;address<={preset[slot],(phase[slot][31:24]+8'd1)};
                 bent_step<=$signed({1'b0,steps[slot]})+(bend_product>>>16);state<=6;end
-            6:begin slope<=$signed(wave)-$signed(base);state<=7;end
-            7:begin interp<=slope*$signed({1'b0,fraction});address<={3'b0,phase[slot][31:24]};state<=8;end
-            8:begin rich_wave<=$signed(base)+((interp+26'sd128)>>>8);sine_base<=wave;
-                address<={3'b0,(phase[slot][31:24]+8'd1)};state<=9;end
-            9:begin slope<=$signed(wave)-$signed(sine_base);state<=10;end
-            10:begin interp<=slope*$signed({1'b0,fraction});state<=11;end
-            11:begin pure_wave<=$signed(sine_base)+((interp+26'sd128)>>>8);state<=12;end
-            12:begin color_product<=(rich_wave-pure_wave)*$signed({1'b0,brightness[slot]});state<=13;end
-            13:begin shaped_wave<=pure_wave+(color_product>>>16);state<=14;end
-            14:begin envelope_product<=shaped_wave*$signed({1'b0,envelopes[slot]});state<=15;end
-            15:begin
+            // Prefetch the sine pair while the rich-wave interpolation runs;
+            // both lookups still share the same ROM and interpolation product.
+            6:begin slope<=$signed(wave)-$signed(base);address<={3'b0,phase[slot][31:24]};state<=7;end
+            7:begin interp<=slope*$signed({1'b0,fraction});sine_base<=wave;
+                address<={3'b0,(phase[slot][31:24]+8'd1)};state<=8;end
+            8:begin rich_wave<=$signed(base)+((interp+26'sd128)>>>8);
+                slope<=$signed(wave)-$signed(sine_base);state<=9;end
+            9:begin interp<=slope*$signed({1'b0,fraction});state<=10;end
+            10:begin pure_wave<=$signed(sine_base)+((interp+26'sd128)>>>8);state<=11;end
+            11:begin color_product<=(rich_wave-pure_wave)*$signed({1'b0,brightness[slot]});state<=12;end
+            12:begin shaped_wave<=pure_wave+(color_product>>>16);state<=13;end
+            13:begin envelope_product<=shaped_wave*$signed({1'b0,envelopes[slot]});state<=14;end
+            14:begin
                 if(occupied[slot]) begin
                     // A stolen voice fades its last output over eight samples;
                     // its replacement attacks from zero rather than hard-cutting.

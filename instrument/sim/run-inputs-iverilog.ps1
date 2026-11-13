@@ -18,6 +18,7 @@ try {
         $benches=@("$test.sv")
         if($test -eq 'tb_shared_ads1115_rate'){$benches=@('tb_shared_ads1115.sv')}
         if($test -eq 'tb_ec11_allocator'){$benches+='tb_voice_allocator.sv'}
+        if($test -eq 'tb_engine_equivalence'){$benches+='reference/polyphonic_engine_reference.v'}
         $binary=Join-Path $out "$test.vvp"
         $compileLog=Join-Path $out "$test.compile.log"
         $simLog=Join-Path $out "$test.log"

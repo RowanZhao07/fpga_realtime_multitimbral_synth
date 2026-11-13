@@ -1,4 +1,6 @@
-# 最终发布验证 EXPR M2 8T
+# M2 发布基线验证
+
+本页保留 M2 的构建、测量与交付身份。当前 M3 源码的优化结果见[M3 调度优化](scheduler_optimization.md)，不将旧构建报告作为新位流的验证结果。
 
 发布日期：2026-11-04。活动工程 `instrument_expression.gprj`，顶层 `instrument_top`；工具 Gowin 1.9.12.03、XSim 2025.1 与 GW5A 官方仿真原语。
 

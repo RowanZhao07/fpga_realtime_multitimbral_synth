@@ -279,7 +279,7 @@ module instrument_screen #(parameter TOUCH_ISOLATION=1'b0,parameter ENABLE_EXPRE
             7:label(x,y,416,24,9,"TONE BASS",24'hC8BCFF);
         endcase
         label(x,y,416,44,9,"48.8K I2S",24'h9CAEC9);
-        if(ENABLE_EXPRESSION) label(x,y,640,24,10,"EXPR M2 8T",24'hC8BCFF);
+        if(ENABLE_EXPRESSION) label(x,y,640,24,10,"EXPR M3 8T",24'hC8BCFF);
         label(x,y,640,44,lamp_test ? 8 : test_on ? 11 : 10,lamp_test ? "LED TEST" : test_on ? "8 SINE TEST" : TOUCH_DEBUG ? "SUST DEBUG" : guide_on ? (display_performance[4] ? "DONE      " : display_performance[6] ? "REST      " : display_performance[5] ? "HOLD      " : "NEXT NOTE ") : "LIVE INPUT",24'hC8BCFF);
         for(key_label=0;key_label<8;key_label=key_label+1)
             label(x,y,48+64*key_label,146,2,white_note(key_label,octave_digit),24'h142137);

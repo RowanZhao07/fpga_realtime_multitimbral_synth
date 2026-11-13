@@ -1,0 +1,132 @@
+{
+  "baseline_commit": "72ef46a",
+  "frame_budget_clocks": 1024,
+  "simulation_clock_hz": 50000000,
+  "seed": "0x71e0cafe",
+  "hardware_validated": false,
+  "total_compared_frames": 26992,
+  "runs": [
+    {
+      "trace": "engine_equivalence_legacy.csv",
+      "sha256": "288757a31f85a0486ab8363aa9f4374e9d5e126ebfc4fa220d78edf63a684a5d",
+      "frames": 13496,
+      "pcm_mismatches": 0,
+      "full_pool_frames": 348,
+      "scenarios": [
+        {
+          "scenario": "idle",
+          "frames": 8,
+          "optimized_clocks_min": 48,
+          "optimized_clocks_max": 48,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 400
+        },
+        {
+          "scenario": "solo",
+          "frames": 160,
+          "optimized_clocks_min": 58,
+          "optimized_clocks_max": 60,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 433
+        },
+        {
+          "scenario": "dense_retrigger",
+          "frames": 288,
+          "optimized_clocks_min": 58,
+          "optimized_clocks_max": 589,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 829
+        },
+        {
+          "scenario": "random_controls",
+          "frames": 1024,
+          "optimized_clocks_min": 358,
+          "optimized_clocks_max": 589,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 829
+        },
+        {
+          "scenario": "release_to_silence",
+          "frames": 12000,
+          "optimized_clocks_min": 48,
+          "optimized_clocks_max": 368,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 400
+        },
+        {
+          "scenario": "reset_restart",
+          "frames": 16,
+          "optimized_clocks_min": 48,
+          "optimized_clocks_max": 60,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 433
+        }
+      ]
+    },
+    {
+      "trace": "engine_equivalence_expression.csv",
+      "sha256": "541a505338ad233d2792da9b0f4ff6764976802cd8b11a9cd2bfc1a9fd83346d",
+      "frames": 13496,
+      "pcm_mismatches": 0,
+      "full_pool_frames": 242,
+      "scenarios": [
+        {
+          "scenario": "idle",
+          "frames": 8,
+          "optimized_clocks_min": 48,
+          "optimized_clocks_max": 48,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 400
+        },
+        {
+          "scenario": "solo",
+          "frames": 160,
+          "optimized_clocks_min": 58,
+          "optimized_clocks_max": 60,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 433
+        },
+        {
+          "scenario": "dense_retrigger",
+          "frames": 288,
+          "optimized_clocks_min": 58,
+          "optimized_clocks_max": 589,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 829
+        },
+        {
+          "scenario": "random_controls",
+          "frames": 1024,
+          "optimized_clocks_min": 288,
+          "optimized_clocks_max": 589,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 829
+        },
+        {
+          "scenario": "release_to_silence",
+          "frames": 12000,
+          "optimized_clocks_min": 48,
+          "optimized_clocks_max": 368,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 400
+        },
+        {
+          "scenario": "reset_restart",
+          "frames": 16,
+          "optimized_clocks_min": 48,
+          "optimized_clocks_max": 60,
+          "baseline_clocks_min": 400,
+          "baseline_clocks_max": 433
+        }
+      ]
+    }
+  ],
+  "inputs": {
+    "instrument/src/polyphonic_engine.v": "11c70fdc5fc5e3ac64ab4c6ed7fb35d66db41bacd2b100d6d716903c2776a859",
+    "instrument/src/envelope_adsr.v": "43340f0f39517d9d55eb08de5b69b6761d1f45d97817c914a6535acb5d1b4612",
+    "instrument/src/timbre_lut.v": "fff1f6c3168b58be168963ae36db35e050f6ec5dc4ad0d5121a682f554e79b57",
+    "instrument/src/note_frequency.v": "99f4e269d60ad8275e460a0412b646b85c17a0de90eff658d34a265abc864300",
+    "instrument/sim/reference/polyphonic_engine_reference.v": "85dcf42bb3c0a10adb42f98818aec0f2aa4ad0b2f4e3db442e0199710405eab8",
+    "instrument/sim/tb_engine_equivalence.sv": "fbc83bfdfce42abda20f663dece25b692f9a42ff9517c2812830c8ac0a91590a"
+  }
+}

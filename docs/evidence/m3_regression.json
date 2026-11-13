@@ -1,0 +1,189 @@
+{
+  "tool": "XSim 2025.1, Gowin GW5A prim_sim.v",
+  "rtl_tests_passed": 17,
+  "tests": [
+    {
+      "test": "tb_engine_equivalence",
+      "passed": true,
+      "log_sha256": "a2e61a9d41e6249a64a661874dc7bee4f665a54b6981da1e5e8b4de3cd41ddaf",
+      "assertion_summary": [
+        "PASS: mode=0 13496 bit-exact frames, 348 full-pool frames, 177131 fading tails; max 829 -> 589 clocks",
+        "PASS: mode=1 13496 bit-exact frames, 242 full-pool frames, 169449 fading tails; max 829 -> 589 clocks",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_voice_allocator",
+      "passed": true,
+      "log_sha256": "6cf18afa4525bf5c3d839cc1fb3613b457c52643c15ed6577d3889999b3717f7",
+      "assertion_summary": [
+        "PASS: 32 voices, dense onsets, maximum 385 clocks / 1024 budget, cross-octave tails, oldest stealing, release",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_expression_allocator",
+      "passed": true,
+      "log_sha256": "7769a1567ed1b50f9c3bcf16ffa6f415b675749fcae6752aa078b7808a708fe7",
+      "assertion_summary": [
+        "PASS: 32 voices, dense onsets, maximum 385 clocks / 1024 budget, cross-octave tails, oldest stealing, release",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_eight_timbres",
+      "passed": true,
+      "log_sha256": "6824533b27e53cfc0d1ec6efef9a981f051cba2764095736c7b1885266e56c80",
+      "assertion_summary": [
+        "PASS: C0 cycles all 8, per-voice presets retained, 32 mixed voices, stealing, silence; max 589 / 1024 clocks",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_expression_core",
+      "passed": true,
+      "log_sha256": "f7ccc5dae5a8d4e76c0635c51061bfdce4f5164d1dd5c0663e9b299b9ce73026",
+      "assertion_summary": [
+        "PASS: actual UART F/Y/E, local VIB/metronome/FX controls, real-rate held-note bend, timbre latch, status and fail-safe",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_metronome_core",
+      "passed": true,
+      "log_sha256": "b9e68585e56587783c5a963adbb2fe96763bec2cec69c0c30ff99e8a3a6ed670",
+      "assertion_summary": [
+        "ALL TESTS PASSED: 8767 stereo I2S frames, independent pressure/effects, master mute, local controls, OFF exact bypass"
+      ]
+    },
+    {
+      "test": "tb_expression_effects",
+      "passed": true,
+      "log_sha256": "eebb3985808533ca18aa539006941425000abbb7fd039a54f2b0f9cc7241569e",
+      "assertion_summary": [
+        "PASS: reverb impulse density/decay, chorus, dry/calibration bypass, bounded full-scale and reset",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_expression_latency",
+      "passed": true,
+      "log_sha256": "a39e53b636ee78bd1eea7915426bf598516e26b1d9c986ab662c4e739f67b8dd",
+      "assertion_summary": [
+        "PASS: touch-status to decoded nonzero I2S maximum 65870 ns over 8 phases",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_i2s_audio",
+      "passed": true,
+      "log_sha256": "e07e9b8e20645bffb18566d1ed8d4213997b1ac7aa06697893a423e4f4515e57",
+      "assertion_summary": [
+        "PASS: tone 0 PCM equals both I2S channels",
+        "PASS: tone 1 PCM equals both I2S channels",
+        "PASS: tone 2 PCM equals both I2S channels",
+        "PASS: tone 3 PCM equals both I2S channels",
+        "PASS: tone 4 PCM equals both I2S channels",
+        "PASS: tone 5 PCM equals both I2S channels",
+        "PASS: tone 6 PCM equals both I2S channels",
+        "PASS: tone 7 PCM equals both I2S channels",
+        "PASS: 164211 signed stereo frames, exact PCM equality and 64 BCK/frame",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_dynamic_timbre",
+      "passed": true,
+      "log_sha256": "16fdbe938b2baaf945f726ba87709a6b54fa2c9c0592f2d06ac364c00c827862",
+      "assertion_summary": [
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_variable_sustain",
+      "passed": true,
+      "log_sha256": "a0840fd037a10e381dc6aa44954e22404cbf59c5108d207c27f37cfb8ba076eb",
+      "assertion_summary": [
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_output_level",
+      "passed": true,
+      "log_sha256": "3f0a083e461c2c73b54e65edd1f57259850feaf725e143e671a964995ebd6bee",
+      "assertion_summary": [
+        "PASS: full mixer range monotonic/symmetric, near-full solo, linear master, wide echo, mute",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_limit_activity",
+      "passed": true,
+      "log_sha256": "1973ba3a98aaa4dc12bd2173f533e9bdf34a4d0e0808f9f67c95de58321cd78c",
+      "assertion_summary": [
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_full_scale_audio",
+      "passed": true,
+      "log_sha256": "276c78a151dd98ffdbab2121a23994ad00ad1dd4533fb7355055fcc4ddb05abd",
+      "assertion_summary": [
+        "PASS: timbre 0, maximum volume + pressure, solo attack peak 30684 / 32767",
+        "PASS: timbre 1, maximum volume + pressure, solo attack peak 30216 / 32767",
+        "PASS: timbre 2, maximum volume + pressure, solo attack peak 30372 / 32767",
+        "PASS: timbre 3, maximum volume + pressure, solo attack peak 30594 / 32767",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_expression_touch_link",
+      "passed": true,
+      "log_sha256": "44984c602b6f295e50381bb0f9cff2471727f57e742c8ee786eef19b6e70db69",
+      "assertion_summary": [
+        "PASS: physical-bus model -> full expression engine -> nonzero PCM and ONLINE HDMI state",
+        "PASS: B NACK reaches live fault card, releases gates, A/ADC keep polling, automatic recovery",
+        "PASS: SCL-low and MPR overcurrent evidence/retry through full playing top; no forced status",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_expression_top",
+      "passed": true,
+      "log_sha256": "fbcc1f2bc3aa82019e39437f2a7a79c0012ce2b4066e246ee0fbb0ca43a2113a",
+      "assertion_summary": [
+        "PASS: full primitive-backed top, 134 scope frames before first FFT, compact banks, idle PCM and 13 voice levels",
+        "ALL TESTS PASSED"
+      ]
+    },
+    {
+      "test": "tb_expression_screen",
+      "passed": true,
+      "log_sha256": "91c7603ba7984923adfaf7668a7ac88f39759c6768f56b82ced824afcdd01684",
+      "assertion_summary": [
+        "PASS: FX/Y controls, full online/offline raster, live fault/count/idle text and page recovery",
+        "ALL TESTS PASSED"
+      ]
+    }
+  ],
+  "python_unittest_tests_passed": 19,
+  "audio_analysis": {
+    "eight_timbres_passed": true,
+    "dynamic_timbre_passed": true
+  },
+  "raw_captures": {
+    "i2s_audio_samples.csv": {
+      "sha256": "c322deed289deaa16ace3b0479a304e48ca471f2c9619ddf06dacc5165ebc004",
+      "bytes": 1839110
+    },
+    "dynamic_timbre.csv": {
+      "sha256": "f24e7b867b4273d9a2b5899b42cac07019551226819dac142316911ab68d7267",
+      "bytes": 879202
+    },
+    "full_scale_audio.csv": {
+      "sha256": "7bcbbe6e757676e7e77745196cb689c14a45d05919f9357663fd2c62d0a25af1",
+      "bytes": 278981
+    }
+  },
+  "hardware_validated": false
+}

@@ -62,7 +62,7 @@ module tb_expression_screen;
  metro={8'd137,3'd4,3'd3,1'b1,1'b1,2'd1};latch;
  character_at(52,436,"3");character_at(208,444,"6");character_at(232,444,"8");
  character_at(28,474,"D");character_at(208,474,"4");
- character_at(256,204,"3");character_at(508,204,"3");character_at(736,24,"8");
+ character_at(256,204,"3");character_at(508,204,"3");character_at(712,24,"3");character_at(736,24,"8");
  // New bank travels separately from the legacy two-bit status field.
  perf[32]=1;status[17:16]=0;latch;character_at(476,24,"F");
  status[17:16]=1;latch;character_at(476,24,"O");
@@ -85,7 +85,7 @@ module tb_expression_screen;
  status[23]=0;status[51:50]=1;
  wiring[15:0]={1'b0,3'b111,8'd0,4'd0};
  wiring[31:16]={1'b0,3'b111,8'd23,4'd1};latch;
- character_at(640,24,"E");character_at(712,24,"2");
+ character_at(640,24,"E");character_at(712,24,"3");
  character_at(576,408,"T");character_at(576,432,"A");character_at(588,432,"1");
  character_at(576,480,"B");character_at(588,480,"0");character_at(624,480,"1");
  character_at(660,480,"0");character_at(672,480,"2");character_at(684,480,"3");

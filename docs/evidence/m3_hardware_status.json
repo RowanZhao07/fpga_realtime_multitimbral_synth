@@ -1,0 +1,11 @@
+{
+  "version": "EXPR M3 8T",
+  "status": "user_reported_test_completed",
+  "reported_on": "2026-11-13",
+  "confirmation_source": "project_maintainer",
+  "summary": "项目维护者确认新版已完成实板实测。",
+  "test_date": null,
+  "tested_bitstream_sha256": null,
+  "additional_measurements": [],
+  "scope_note": "本记录保存实测完成确认；不新增逐项测试覆盖、实测性能指标或板上位流哈希声明。"
+}

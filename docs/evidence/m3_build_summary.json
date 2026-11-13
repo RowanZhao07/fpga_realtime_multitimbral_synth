@@ -1,0 +1,79 @@
+{
+  "resources": {
+    "Logic": {
+      "used": 36546,
+      "available": 59904,
+      "percent": 61.0076
+    },
+    "Register": {
+      "used": 8818,
+      "available": 60780,
+      "percent": 14.5081
+    },
+    "BSRAM": {
+      "used": 99,
+      "available": 118,
+      "percent": 83.8983
+    },
+    "DSP": {
+      "used": 39,
+      "available": 118,
+      "percent": 33.0508
+    }
+  },
+  "minimum_margins_ns": {
+    "setup": 0.162,
+    "hold": 0.05,
+    "recovery": 0.175,
+    "removal": 0.589,
+    "minimum_pulse_width": 5.859
+  },
+  "setup_violations": 0,
+  "hold_violations": 0,
+  "fmax_system_mhz": 50.408,
+  "bitstream": "instrument_expression_m3_scheduler.fs",
+  "bitstream_sha256": "5DF395F013DA8425ACF4D415A3C544D82C917CD5A42A715334E4B986EFD30FAD",
+  "bitstream_bytes": 20706987,
+  "source_inputs_verified": 56,
+  "baseline_preserved": true,
+  "hardware_validated": false,
+  "warnings": [
+    {
+      "code": "PR1014",
+      "signal": "ref_clk_d",
+      "also_present_in_M2": true
+    }
+  ],
+  "built_at_utc": "2026-11-07T15:54:31.7528397Z",
+  "tool_version": "Gowin 1.9.12.03",
+  "reports": {
+    "outputs/expression-m3-scheduler/instrument_expression.tr": {
+      "sha256": "18a42c5e637913accb3073507a432e5ebe4b66d193c496960d99155ea7740fe9",
+      "bytes": 344825
+    },
+    "outputs/expression-m3-scheduler/instrument_expression.rpt.txt": {
+      "sha256": "25b491df06a0cc4435288e11c397924ac4b549f3a627ae840d3a2c51fac06c1a",
+      "bytes": 105318
+    },
+    "outputs/expression-m3-scheduler/instrument_expression.pin.html": {
+      "sha256": "37bec901b33f651dfcf62d56a4ecb729771b5541099aa4568027da81f382d6d0",
+      "bytes": 121381
+    },
+    "outputs/expression-m3-scheduler/build.log": {
+      "sha256": "69bca89439020fd48abdef44197c9a6c7ca48dc27ab599af9fe82d576d10800c",
+      "bytes": 31624
+    }
+  },
+  "unchanged_hardware_and_sound_inputs": {
+    "instrument/src/instrument.cst": "3388905ac379ae99a305b22ac77dbabc33c499bec8a07ff5bad4cd3c61a100ca",
+    "instrument/src/instrument.sdc": "72484cf03067b208167eacdad63bdea0830be028bed8047f82c717bf0e579d42",
+    "instrument/config/expression_process_config.json": "88238d81c07a91516b0f8ab0e228f5e7a07bcd3c430a29574033bf7914ea5e3e",
+    "instrument/config/expression_top.vh": "d710c0a350309eabf2eea8e9fcf14df1e86c12b4dd5b18520165eb9f9e0e92d6",
+    "instrument/instrument_expression.gprj": "d374a6443067cd686db9ae03a7387958e40f0bbd3f027686d47f912fcd60ebe4",
+    "instrument/src/instrument_top.v": "ebcb1a4ef597aad8ebfa8655e7f561e7ccdb7ae20c1d9a673c6cd2ca70821efe",
+    "instrument/src/ads1115_scanner.v": "a880151c5f637b32ff3e4863e6625e4a951845bb13329472b7e0a3ca5e76a539",
+    "instrument/src/mpr121_controller.v": "29e7dbd82ff15ded136f4f2c1c45c1475af8f06c2b72c7a164cd3f0b553eb6a2",
+    "instrument/src/timbre_lut.v": "fff1f6c3168b58be168963ae36db35e050f6ec5dc4ad0d5121a682f554e79b57",
+    "instrument/src/envelope_adsr.v": "43340f0f39517d9d55eb08de5b69b6761d1f45d97817c914a6535acb5d1b4612"
+  }
+}

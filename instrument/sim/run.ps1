@@ -25,10 +25,12 @@ try {
     & $xvlog $GowinSimLib
     if($LASTEXITCODE) { throw 'Gowin simulation library compilation failed' }
     $benches=Get-ChildItem tb*.sv | ForEach-Object Name
-    & $xvlog --sv @sources @benches
+    $references=@(Get-ChildItem reference/*.v | ForEach-Object { Join-Path 'reference' $_.Name })
+    & $xvlog --sv @sources @references @benches
     if($LASTEXITCODE) { throw 'RTL/test compilation failed' }
     $tests=@('tb_shared_ads1115_rate','tb_joystick_core','tb_shared_ads1115','tb_joystick_top','tb_joystick_controls','tb_pressure_expression','tb_output_level','tb_full_scale_audio','tb_builtin_score','tb_ec11_sustain','tb_ec11_allocator','tb_ec11_top','tb_variable_sustain','tb_ec11_core','tb_octave_controls','tb_octave_audio','tb_i2c_recovery','tb_touch_debug','tb_sustain_envelope','tb_sustain_control','tb_sustain_audio','tb_waveform','tb_scope_link','tb_screen_feedback','tb_voice_feedback','tb_top_integration','tb_controls','tb_echo','tb_synthesis','tb_voice_quality','tb_timbre_profiles','tb_chord_audio','tb_i2s_audio','tb_touch_link','tb_pressure_link','tb_pressure_audio','tb_hc595','tb_key_lights','tb_lamp_diagnostics','tb_board_clock','tb_spectrum','tb_video','tb_visual_link','tb_serial_video','tb_latency','tb_uart_control','tb_uart_diagnostics','tb_uart_tx_notice','tb_score_upload','tb_remote_instrument','tb_tempo','tb_voice_allocator','tb_guide_timing','tb_dynamic_timbre','tb_guide_auto')
     $tests=@('tb_metronome_control','tb_metronome_audio','tb_spectrum_pair_peak','tb_metronome_core','tb_eight_timbres','tb_timbre_mailbox','tb_display_gain','tb_wallpaper','tb_lissajous','tb_limit_activity','tb_touch_isolation_control','tb_touch_isolation_top','tb_touch_isolation_screen','tb_pitch_expression','tb_expression_effects','tb_expression_adc','tb_expression_allocator','tb_expression_core','tb_expression_top','tb_expression_touch_link','tb_expression_screen','tb_expression_latency','tb_wiring_screen','tb_wiring_top') + $tests
+    $tests=@('tb_engine_equivalence') + $tests
     if($Only){ $tests=$Only.Split(',') }
     foreach($test in $tests) {
         # Full-frame raster tests need no interactive HDL debugging. Keep all
@@ -41,6 +43,10 @@ try {
             throw "Simulation failed: $test"
         }
         Copy-Item xsim.log "$test.log" -Force
+    }
+    if($tests -contains 'tb_engine_equivalence') {
+        & $Python ../tools/analyze_engine_equivalence.py
+        if($LASTEXITCODE) { throw 'Engine equivalence trace analysis failed' }
     }
     if(!$NoAnalysis){
     & $Python ../tools/analyze_octaves.py

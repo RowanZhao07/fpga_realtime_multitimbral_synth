@@ -1,6 +1,6 @@
 # FPGA 与 PCB 接线清单
 
-对应 EXPR M2 8T 与 `instrument/src/instrument.cst`。表格区分 PCB 位号、开发板排针和 FPGA 球位；模块型号与接线按定制底板设计列出。
+对应 EXPR M2 / M3 8T 与 `instrument/src/instrument.cst`。表格区分 PCB 位号、开发板排针和 FPGA 球位；模块型号与接线按定制底板设计列出。
 
 ## U1 方向：最重要的定位
 
